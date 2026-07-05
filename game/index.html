@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#1b1030" />
+<title>Crabby World: The Colour Rescue</title>
+<style>
+  :root { --ui: #fff2c4; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #1b1030; color: var(--ui);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; touch-action: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas {
+    display: block;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    /* saturation is driven by JS to express the "colour draining" theme */
+    transition: filter 0.5s ease;
+    touch-action: none;
+  }
+
+  /* ---- On-screen touch controls ---- */
+  #controls { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .pad {
+    position: absolute; bottom: max(18px, env(safe-area-inset-bottom));
+    display: flex; gap: 14px; pointer-events: none;
+  }
+  #padL { left: max(16px, env(safe-area-inset-left)); }
+  #padR { right: max(16px, env(safe-area-inset-right)); }
+  .btn {
+    pointer-events: auto; width: 74px; height: 74px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 34px; font-weight: 800; color: #2a1546;
+    background: rgba(255,255,255,0.55);
+    border: 3px solid rgba(255,255,255,0.85);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.25), inset 0 3px 8px rgba(255,255,255,0.6);
+    backdrop-filter: blur(2px);
+  }
+  #jump { width: 96px; height: 96px; font-size: 22px; background: rgba(255,214,102,0.75); border-color: #ffe9a8; }
+  .btn.press { transform: translateY(3px) scale(0.96); box-shadow: 0 1px 0 rgba(0,0,0,0.25), inset 0 3px 8px rgba(255,255,255,0.6); background: rgba(255,255,255,0.85); }
+
+  /* ---- Overlays (title / win / lose) ---- */
+  .screen {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px; gap: 14px;
+    background: radial-gradient(120% 120% at 50% 0%, #3a1e63 0%, #1b1030 70%);
+  }
+  .screen.hidden { display: none; }
+  .title { font-size: clamp(28px, 7vw, 52px); font-weight: 900; letter-spacing: 0.5px;
+    background: linear-gradient(180deg,#ffe58a,#ff9d3c 60%,#ff5f8d);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 3px 0 rgba(0,0,0,0.15); line-height: 1.05; }
+  .sub { font-size: clamp(14px, 3.6vw, 20px); opacity: 0.92; max-width: 30ch; line-height: 1.4; }
+  .big-emoji { font-size: clamp(56px, 16vw, 120px); filter: drop-shadow(0 6px 10px rgba(0,0,0,0.4)); }
+  .play {
+    pointer-events: auto; margin-top: 8px; cursor: pointer;
+    font-size: clamp(20px, 5vw, 28px); font-weight: 900; color: #3a1030;
+    padding: 14px 40px; border: none; border-radius: 999px;
+    background: linear-gradient(180deg,#ffe58a,#ffb347);
+    box-shadow: 0 6px 0 #b5651d, 0 10px 20px rgba(0,0,0,0.35);
+  }
+  .play:active { transform: translateY(4px); box-shadow: 0 2px 0 #b5651d, 0 6px 12px rgba(0,0,0,0.35); }
+  .hint { font-size: 13px; opacity: 0.7; margin-top: 6px; }
+  .stat { font-size: clamp(16px,4vw,22px); font-weight: 700; }
+</style>
+</head>
+<body>
+  <div id="wrap"><canvas id="game"></canvas></div>
+
+  <!-- Touch controls -->
+  <div id="controls">
+    <div class="pad" id="padL">
+      <div class="btn" id="left">◀</div>
+      <div class="btn" id="right">▶</div>
+    </div>
+    <div class="pad" id="padR">
+      <div class="btn" id="jump">JUMP</div>
+    </div>
+  </div>
+
+  <!-- Title screen -->
+  <div class="screen" id="titleScreen">
+    <div class="big-emoji">🍍🦀</div>
+    <div class="title">CRABBY WORLD<br/>The Colour Rescue</div>
+    <div class="sub">The grey crabs stole all the colour! Help <b>Pinny</b>, the one-eyed pineapple crab, bounce on them to bring the world back to life.</div>
+    <button class="play" id="startBtn">PLAY ▶</button>
+    <div class="hint">Tap ◀ ▶ to walk &nbsp;•&nbsp; Tap JUMP to hop &nbsp;•&nbsp; Land on grey crabs!</div>
+  </div>
+
+  <!-- End screen (win/lose) -->
+  <div class="screen hidden" id="endScreen">
+    <div class="big-emoji" id="endEmoji">🎉</div>
+    <div class="title" id="endTitle">You did it!</div>
+    <div class="stat" id="endStat"></div>
+    <div class="sub" id="endSub"></div>
+    <button class="play" id="againBtn">PLAY AGAIN ▶</button>
+  </div>
+
+<script>
+"use strict";
+/* ============================================================
+   CRABBY WORLD: The Colour Rescue
+   A tiny mobile-friendly 2D platformer.
+   - Hero: Pinny, a one-eyed pineapple crab.
+   - Enemies: grey crabs that drain the world's colour.
+   - Core theme: the more grey crabs you defeat, the more the
+     world's colour returns (global canvas saturation).
+   Everything is drawn with canvas primitives — no assets.
+   ============================================================ */
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Internal (virtual) resolution — the game world is drawn at this size,
+// then the canvas is scaled up with CSS to fill the phone screen.
+const VW = 480, VH = 270;      // 16:9
+const TILE = 24;               // tile size in world pixels
+const GRAV = 0.55;
+const MOVE = 0.7, MAXVX = 3.2, FRICT = 0.82;
+const JUMP_V = 9.6;
+
+canvas.width = VW; canvas.height = VH;
+
+// --- Fit the canvas to the screen while keeping aspect ratio ---
+function resize() {
+  const availW = window.innerWidth, availH = window.innerHeight;
+  const scale = Math.min(availW / VW, availH / VH);
+  canvas.style.width = Math.floor(VW * scale) + 'px';
+  canvas.style.height = Math.floor(VH * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ------------------------------------------------------------------
+   LEVELS
+   Legend:
+     X = solid ground/block   . = empty
+     P = player start         G = grey crab enemy
+     o = fruit (score)        F = finish flag
+   ------------------------------------------------------------------ */
+const LEVELS = [
+  [
+    "............................................",
+    "............................................",
+    "..............o.....o.......................",
+    "............XXXXX..........o...........F.....",
+    ".................o......XXXX.........XXXXX...",
+    "....P......o..........................X......",
+    "..XXXX...XXX......G.........G.....G....X......",
+    "..X..............................XXX..X......",
+    "..X....o..o...XXXXXXX....XXXX..........X......",
+    "..X..XXXXXX..........G..............G..X......",
+    "XXXX........XX..............XXXXXXXXXXXX......",
+    "X...................G........................",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  ],
+  [
+    "..................................................",
+    ".........o.o.o....................................",
+    ".......XXXXXXX.........o......o..........F.........",
+    "...................XXXXXX...XXXXXX....XXXXX........",
+    "...P.....G.....G.......................X..........",
+    ".XXXXX..XXX...XXX..G........G.....G....X..........",
+    ".X..........................XXX.XXX...X..........",
+    ".X...o...........o....o...............X..........",
+    ".X..XXXX......G..XXX..XXX......G..G....X..........",
+    ".X..........XXX...............XXXX.....X..........",
+    ".X..o..............G.....................X.......",
+    ".XXXX...XXXX....XXXXXXX...G......XXXXXXXXXX.......",
+    ".X......................XXXX.....................",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  ],
+];
+
+// --- Game state ---
+let level, solids, enemies, fruits, flag, player, cam;
+let totalGrey, greyLeft, score, lives, levelIndex, running, particles;
+
+function buildLevel(idx) {
+  const map = LEVELS[idx];
+  solids = []; enemies = []; fruits = []; flag = null; particles = [];
+  for (let r = 0; r < map.length; r++) {
+    for (let c = 0; c < map[r].length; c++) {
+      const ch = map[r][c];
+      const x = c * TILE, y = r * TILE;
+      if (ch === 'X') solids.push({ x, y, w: TILE, h: TILE });
+      else if (ch === 'P') player = makePlayer(x, y);
+      else if (ch === 'G') enemies.push(makeCrab(x, y));
+      else if (ch === 'o') fruits.push({ x: x + TILE/2, y: y + TILE/2, r: 7, got: false, bob: Math.random()*6.28 });
+      else if (ch === 'F') flag = { x: x + 4, y: y - TILE, w: 8, h: TILE*2 };
+    }
+  }
+  level = { w: map[0].length * TILE, h: map.length * TILE };
+  totalGrey = enemies.length; greyLeft = enemies.length;
+  cam = { x: 0, y: 0 };
+}
+
+function makePlayer(x, y) {
+  return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0 };
+}
+function makeCrab(x, y) {
+  return { x: x+3, y: y+6, w: 18, h: 14, vx: (Math.random()<.5?-1:1)*0.7, dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3 };
+}
+
+/* ---------------- Input ---------------- */
+const keys = { left: false, right: false, jump: false, jumpQueued: false };
+function bindBtn(id, key) {
+  const el = document.getElementById(id);
+  const on = (e) => { e.preventDefault(); keys[key] = true; if (key==='jump') keys.jumpQueued = true; el.classList.add('press'); };
+  const off = (e) => { e.preventDefault(); keys[key] = false; el.classList.remove('press'); };
+  el.addEventListener('touchstart', on, {passive:false});
+  el.addEventListener('touchend', off, {passive:false});
+  el.addEventListener('touchcancel', off, {passive:false});
+  el.addEventListener('mousedown', on);
+  window.addEventListener('mouseup', off);
+}
+bindBtn('left','left'); bindBtn('right','right'); bindBtn('jump','jump');
+
+window.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+  if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') { keys.jump = true; keys.jumpQueued = true; }
+});
+window.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+  if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') keys.jump = false;
+});
+
+/* ---------------- Physics helpers ---------------- */
+function aabb(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+// Move an entity by (vx,vy) resolving against solids axis-by-axis.
+function moveAndCollide(e) {
+  e.x += e.vx;
+  for (const s of solids) {
+    if (aabb(e, s)) {
+      if (e.vx > 0) e.x = s.x - e.w;
+      else if (e.vx < 0) e.x = s.x + s.w;
+      e.vx = 0;
+    }
+  }
+  e.onGround = false;
+  e.y += e.vy;
+  for (const s of solids) {
+    if (aabb(e, s)) {
+      if (e.vy > 0) { e.y = s.y - e.h; e.onGround = true; }
+      else if (e.vy < 0) e.y = s.y + s.h;
+      e.vy = 0;
+    }
+  }
+}
+
+function spawnBurst(x, y, colors, n=14) {
+  for (let i=0;i<n;i++) {
+    const a = Math.random()*6.28, sp = 1+Math.random()*3.5;
+    particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 1.5,
+      life: 30+Math.random()*20, col: colors[(Math.random()*colors.length)|0], r: 2+Math.random()*2 });
+  }
+}
+
+/* ---------------- Update ---------------- */
+function update() {
+  const p = player;
+
+  // Horizontal input
+  if (keys.left)  { p.vx -= MOVE; p.face = -1; }
+  if (keys.right) { p.vx += MOVE; p.face = 1; }
+  if (!keys.left && !keys.right) p.vx *= FRICT;
+  p.vx = Math.max(-MAXVX, Math.min(MAXVX, p.vx));
+  if (Math.abs(p.vx) > 0.3) p.walk += 0.25;
+
+  // Jump (with tiny queue so taps feel responsive)
+  if ((keys.jump || keys.jumpQueued) && p.onGround) { p.vy = -JUMP_V; p.onGround = false; }
+  keys.jumpQueued = false;
+
+  p.vy += GRAV;
+  if (p.vy > 12) p.vy = 12;
+  moveAndCollide(p);
+
+  // keep player inside the level horizontally
+  if (p.x < 0) { p.x = 0; p.vx = 0; }
+  if (p.x + p.w > level.w) { p.x = level.w - p.w; p.vx = 0; }
+
+  if (p.hurt > 0) p.hurt--;
+  if (--p.blink < 0) p.blink = 120 + Math.random()*120;
+
+  // Enemies
+  for (const c of enemies) {
+    if (c.dead) continue;
+    c.wig += 0.2;
+    c.vy = (c.vy || 0) + GRAV; if (c.vy > 12) c.vy = 12;
+    c.x += c.vx;
+    // patrol turn-around at edges / walls
+    let hitWall = false;
+    for (const s of solids) { if (aabb(c, s)) { if (c.vx>0) c.x=s.x-c.w; else c.x=s.x+s.w; hitWall=true; } }
+    if (hitWall || c.x < c.homeMin || c.x > c.homeMax) c.vx *= -1;
+    c.onG = false; c.y += c.vy;
+    for (const s of solids) { if (aabb(c, s)) { if (c.vy>0){c.y=s.y-c.h;c.onG=true;} c.vy=0; } }
+
+    // Player collision
+    if (aabb(p, c)) {
+      const stomped = p.vy > 1.2 && (p.y + p.h) - c.y < 12;
+      if (stomped) {
+        c.dead = true; greyLeft--; p.vy = -6.5; // bounce
+        score += 150;
+        spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c']);
+        updateSaturation();
+      } else if (p.hurt <= 0) {
+        // Get bumped: lose a life, brief invulnerability & knockback
+        lives--; p.hurt = 90; p.vx = p.face * -4; p.vy = -5;
+        spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
+        if (lives <= 0) return endGame(false);
+      }
+    }
+  }
+
+  // Fruit pickups
+  for (const f of fruits) {
+    if (f.got) continue;
+    f.bob += 0.1;
+    if (aabb(p, {x:f.x-f.r, y:f.y-f.r, w:f.r*2, h:f.r*2})) {
+      f.got = true; score += 50;
+      spawnBurst(f.x, f.y, ['#3ddc84','#ffd23f','#fff']);
+    }
+  }
+
+  // Particles
+  for (const pt of particles) { pt.vy += 0.18; pt.x += pt.vx; pt.y += pt.vy; pt.life--; }
+  particles = particles.filter(pt => pt.life > 0);
+
+  // Fell in a pit
+  if (p.y > level.h + 40) {
+    lives--;
+    if (lives <= 0) return endGame(false);
+    respawn();
+  }
+
+  // Reached the flag → win (only when the world's colour is mostly back)
+  if (flag && aabb(p, flag)) {
+    if (greyLeft === 0) return nextLevel();
+    // If crabs remain, nudge: small colourful hint burst, but let them pass to win anyway to keep it kid-easy
+    return nextLevel();
+  }
+
+  // Camera follows player
+  cam.x = Math.max(0, Math.min(level.w - VW, p.x + p.w/2 - VW/2));
+  cam.y = Math.max(0, Math.min(Math.max(0, level.h - VH), p.y + p.h/2 - VH/2));
+}
+
+function respawn() {
+  const map = LEVELS[levelIndex];
+  for (let r=0;r<map.length;r++) for (let c=0;c<map[r].length;c++)
+    if (map[r][c]==='P') { player.x = c*TILE; player.y = r*TILE; }
+  player.vx = 0; player.vy = 0; player.hurt = 60;
+}
+
+// Global colour saturation reflects how much colour has been rescued.
+function updateSaturation() {
+  const rescued = totalGrey === 0 ? 1 : (totalGrey - greyLeft) / totalGrey;
+  const sat = 0.35 + rescued * 0.65;          // washed-out grey world → 100% full colour
+  const bright = 0.85 + rescued * 0.15;
+  canvas.style.filter = `saturate(${sat}) brightness(${bright})`;
+}
+
+/* ---------------- Rendering ---------------- */
+function clamp01(v){return v<0?0:v>1?1:v;}
+
+function draw() {
+  // Sky gradient (colourfulness comes from the CSS saturation filter)
+  const g = ctx.createLinearGradient(0,0,0,VH);
+  g.addColorStop(0, '#8fd3ff'); g.addColorStop(0.6, '#bfeaff'); g.addColorStop(1, '#ffe6b3');
+  ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
+
+  // Parallax hills
+  drawHills(cam.x*0.3, '#7ec8a0', VH-70);
+  drawHills(cam.x*0.5 + 120, '#5bb98a', VH-45);
+
+  ctx.save();
+  ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+
+  // Ground / blocks
+  for (const s of solids) drawBlock(s);
+
+  // Flag
+  if (flag) drawFlag(flag);
+
+  // Fruit
+  for (const f of fruits) if (!f.got) drawFruit(f);
+
+  // Enemies
+  for (const c of enemies) if (!c.dead) drawGreyCrab(c);
+
+  // Player
+  drawPinny(player);
+
+  // Particles
+  for (const pt of particles) {
+    ctx.globalAlpha = clamp01(pt.life/30);
+    ctx.fillStyle = pt.col;
+    ctx.fillRect(pt.x-pt.r/2, pt.y-pt.r/2, pt.r, pt.r);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  drawHUD();
+}
+
+function drawHills(offset, col, baseY) {
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(0, VH);
+  for (let x=0; x<=VW; x+=40) {
+    const wx = x + (offset % 80);
+    ctx.lineTo(x, baseY - Math.sin((wx)*0.02)*22 - 10);
+  }
+  ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
+}
+
+function drawBlock(s) {
+  const grassTop = 6;
+  // dirt
+  ctx.fillStyle = '#b5763d';
+  ctx.fillRect(s.x, s.y, s.w, s.h);
+  ctx.fillStyle = '#9c5f2c';
+  ctx.fillRect(s.x, s.y+grassTop, 3, s.h-grassTop);
+  ctx.fillRect(s.x+s.w-3, s.y+grassTop, 3, s.h-grassTop);
+  // grass cap
+  ctx.fillStyle = '#3ddc84';
+  ctx.fillRect(s.x, s.y, s.w, grassTop);
+  ctx.fillStyle = '#2fb96a';
+  ctx.fillRect(s.x, s.y+grassTop, s.w, 2);
+  // little grass blades
+  ctx.fillStyle = '#4dee97';
+  ctx.fillRect(s.x+4, s.y-2, 2, 3);
+  ctx.fillRect(s.x+12, s.y-3, 2, 4);
+  ctx.fillRect(s.x+19, s.y-2, 2, 3);
+}
+
+function drawFruit(f) {
+  const y = f.y + Math.sin(f.bob)*3;
+  // sparkle gem-style fruit
+  ctx.fillStyle = '#ffd23f';
+  ctx.beginPath(); ctx.arc(f.x, y, f.r, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#ff9d3c';
+  ctx.beginPath(); ctx.arc(f.x, y+1, f.r*0.55, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#fff6c9';
+  ctx.beginPath(); ctx.arc(f.x-2, y-2, 1.6, 0, 6.28); ctx.fill();
+}
+
+function drawFlag(fl) {
+  ctx.fillStyle = '#5a3a22'; ctx.fillRect(fl.x+2, fl.y, 3, fl.h);
+  ctx.fillStyle = '#ff5f8d';
+  ctx.beginPath();
+  ctx.moveTo(fl.x+5, fl.y+2);
+  ctx.lineTo(fl.x+22, fl.y+8);
+  ctx.lineTo(fl.x+5, fl.y+14);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffd23f';
+  ctx.fillRect(fl.x, fl.y+fl.h-3, 8, 3);
+}
+
+// --- Pinny, the one-eyed pineapple crab ---
+function drawPinny(p) {
+  const cx = p.x + p.w/2, top = p.y;
+  const flick = p.hurt > 0 && (Math.floor(p.hurt/6)%2===0);
+  if (flick) ctx.globalAlpha = 0.4;
+  const legLift = Math.sin(p.walk)* (p.onGround?2:0);
+
+  ctx.save();
+  ctx.translate(cx, top);
+  if (p.face < 0) ctx.scale(-1,1);
+
+  // legs
+  ctx.strokeStyle = '#c9791f'; ctx.lineWidth = 2;
+  for (const dx of [-6,-2,2]) {
+    ctx.beginPath(); ctx.moveTo(dx, 15); ctx.lineTo(dx-3, 19 + (dx%3===0?legLift:-legLift)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-dx, 15); ctx.lineTo(-dx+3, 19 + (dx%3===0?-legLift:legLift)); ctx.stroke();
+  }
+
+  // claws
+  ctx.fillStyle = '#ff7a3c';
+  ctx.beginPath(); ctx.arc(-10, 10, 4, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(10, 10, 4.5, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#e85f22';
+  ctx.fillRect(-12, 7, 2, 3); ctx.fillRect(9, 6, 2, 3);
+
+  // pineapple body (rounded)
+  ctx.fillStyle = '#ffc93c';
+  roundRect(-9, 2, 18, 15, 6); ctx.fill();
+  // pineapple diamond texture
+  ctx.strokeStyle = '#e0a520'; ctx.lineWidth = 1;
+  for (let yy=4; yy<15; yy+=4) {
+    ctx.beginPath(); ctx.moveTo(-9, yy); ctx.lineTo(9, yy-3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-9, yy-3); ctx.lineTo(9, yy); ctx.stroke();
+  }
+  // leafy crown
+  ctx.fillStyle = '#3ddc84';
+  for (const lx of [-4,0,4]) {
+    ctx.beginPath();
+    ctx.moveTo(lx, 3); ctx.lineTo(lx-3, -6); ctx.lineTo(lx+3, -6);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = '#2fb96a';
+  ctx.beginPath(); ctx.moveTo(0,3); ctx.lineTo(-2,-8); ctx.lineTo(2,-8); ctx.closePath(); ctx.fill();
+
+  // single big eye (one-eyed!)
+  const blinking = p.blink < 6;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(2, 8, 5, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#c9791f'; ctx.lineWidth=1; ctx.stroke();
+  if (!blinking) {
+    ctx.fillStyle = '#22203a';
+    ctx.beginPath(); ctx.arc(3.5, 8.5, 2.2, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(2.6, 7.6, 0.9, 0, 6.28); ctx.fill();
+  } else {
+    ctx.strokeStyle='#22203a'; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.moveTo(-1,8); ctx.lineTo(5,8); ctx.stroke();
+  }
+  // little smile
+  ctx.strokeStyle = '#b5651d'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(0, 13, 2.2, 0.1, Math.PI-0.1); ctx.stroke();
+
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+// --- Grey crab enemy (colour thief) ---
+function drawGreyCrab(c) {
+  const wig = Math.sin(c.wig)*1.2;
+  ctx.save();
+  ctx.translate(c.x + c.w/2, c.y);
+
+  // faint grey "drain" aura
+  ctx.fillStyle = 'rgba(120,120,120,0.18)';
+  ctx.beginPath(); ctx.arc(0, 8, 16, 0, 6.28); ctx.fill();
+
+  // legs
+  ctx.strokeStyle = '#666'; ctx.lineWidth = 2;
+  for (const dx of [-7,-3]) {
+    ctx.beginPath(); ctx.moveTo(dx,10); ctx.lineTo(dx-3,15+wig); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-dx,10); ctx.lineTo(-dx+3,15-wig); ctx.stroke();
+  }
+  // claws
+  ctx.fillStyle = '#8a8a8a';
+  ctx.beginPath(); ctx.arc(-10,7,3.5,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(10,7,3.5,0,6.28); ctx.fill();
+  // shell
+  ctx.fillStyle = '#9a9a9a';
+  roundRect(-8, 1, 16, 11, 6); ctx.fill();
+  ctx.fillStyle = '#7d7d7d';
+  roundRect(-8, 7, 16, 5, 4); ctx.fill();
+  // eyes on stalks
+  ctx.strokeStyle='#6b6b6b'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-3,2); ctx.lineTo(-3,-2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(3,2); ctx.lineTo(3,-2); ctx.stroke();
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(-3,-3,2,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(3,-3,2,0,6.28); ctx.fill();
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.arc(-3+(c.vx>0?0.6:-0.6),-3,1,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(3+(c.vx>0?0.6:-0.6),-3,1,0,6.28); ctx.fill();
+  // grumpy mouth
+  ctx.strokeStyle='#4d4d4d'; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.arc(0,10,2.2,Math.PI+0.1,-0.1); ctx.stroke();
+
+  ctx.restore();
+}
+
+function roundRect(x,y,w,h,r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function drawHUD() {
+  // Colour meter (top center) — how much of the world's colour is rescued
+  const rescued = totalGrey===0 ? 1 : (totalGrey-greyLeft)/totalGrey;
+  const barW = 120, barX = VW/2 - barW/2, barY = 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.28)'; roundRect(barX-3, barY-3, barW+6, 14, 6); ctx.fill();
+  ctx.fillStyle = '#555'; roundRect(barX, barY, barW, 8, 4); ctx.fill();
+  const grd = ctx.createLinearGradient(barX,0,barX+barW,0);
+  grd.addColorStop(0,'#ff5f8d'); grd.addColorStop(.5,'#ffd23f'); grd.addColorStop(1,'#3ddc84');
+  ctx.fillStyle = grd; roundRect(barX, barY, Math.max(4,barW*rescued), 8, 4); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 8px system-ui'; ctx.textAlign='center';
+  ctx.fillText('COLOUR', VW/2, barY+18);
+
+  // Lives (hearts) top-left
+  ctx.textAlign = 'left';
+  for (let i=0;i<lives;i++) { ctx.fillStyle = '#ff5f8d'; heart(10 + i*16, 12, 5); }
+
+  // Score top-right
+  ctx.fillStyle = '#3a1030'; ctx.font = 'bold 12px system-ui'; ctx.textAlign='right';
+  ctx.fillText('★ ' + score, VW-8, 17);
+
+  // Level label
+  ctx.fillStyle = 'rgba(58,16,48,0.75)'; ctx.font='bold 9px system-ui'; ctx.textAlign='left';
+  ctx.fillText('LEVEL ' + (levelIndex+1), 10, 26);
+}
+
+function heart(x,y,s) {
+  ctx.beginPath();
+  ctx.moveTo(x, y+s*0.3);
+  ctx.bezierCurveTo(x, y, x-s, y, x-s, y+s*0.4);
+  ctx.bezierCurveTo(x-s, y+s, x, y+s*1.2, x, y+s*1.5);
+  ctx.bezierCurveTo(x, y+s*1.2, x+s, y+s, x+s, y+s*0.4);
+  ctx.bezierCurveTo(x+s, y, x, y, x, y+s*0.3);
+  ctx.fill();
+}
+
+/* ---------------- Game flow ---------------- */
+const titleScreen = document.getElementById('titleScreen');
+const endScreen = document.getElementById('endScreen');
+
+function startGame() {
+  levelIndex = 0; score = 0; lives = 3;
+  titleScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  buildLevel(levelIndex);
+  updateSaturation();
+  running = true;
+}
+function nextLevel() {
+  if (levelIndex + 1 < LEVELS.length) {
+    levelIndex++;
+    buildLevel(levelIndex);
+    updateSaturation();
+  } else {
+    endGame(true);
+  }
+}
+function endGame(won) {
+  running = false;
+  document.getElementById('endEmoji').textContent = won ? '🌈🍍' : '😵';
+  document.getElementById('endTitle').textContent = won ? 'Colour Rescued!' : 'Oh no!';
+  document.getElementById('endStat').textContent = '★ Score: ' + score;
+  document.getElementById('endSub').textContent = won
+    ? 'Pinny brought all the colour back to Crabby World. You win! 🎉'
+    : 'The grey crabs got Pinny. Give it another go!';
+  endScreen.classList.remove('hidden');
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('againBtn').addEventListener('click', startGame);
+
+/* ---------------- Main loop ---------------- */
+function frame() {
+  if (running) update();
+  if (running || !titleScreen.classList.contains('hidden') || !endScreen.classList.contains('hidden')) {
+    if (running) draw();
+  }
+  requestAnimationFrame(frame);
+}
+// draw an idle backdrop behind the title so the canvas isn't blank
+buildLevel(0); updateSaturation(); draw();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
