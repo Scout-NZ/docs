@@ -16,14 +16,16 @@
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-user-select: none; user-select: none; touch-action: none;
   }
-  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #wrap { position: fixed; inset: 0; }
   canvas {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
     display: block;
     image-rendering: pixelated; image-rendering: crisp-edges;
-    /* saturation is driven by JS to express the "colour draining" theme */
-    transition: filter 0.5s ease;
     touch-action: none;
   }
+  /* World layer desaturates to show the stolen colour; foreground stays full colour. */
+  #world { z-index: 1; transition: filter 0.5s ease; }
+  #game  { z-index: 2; }
 
   /* ---- On-screen touch controls ---- */
   #controls { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
@@ -72,7 +74,7 @@
 </style>
 </head>
 <body>
-  <div id="wrap"><canvas id="game"></canvas></div>
+  <div id="wrap"><canvas id="world"></canvas><canvas id="game"></canvas></div>
 
   <!-- Touch controls -->
   <div id="controls">
@@ -115,8 +117,14 @@
    Everything is drawn with canvas primitives — no assets.
    ============================================================ */
 
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+const worldCanvas = document.getElementById('world');
+const fgCanvas = document.getElementById('game');
+const worldCtx = worldCanvas.getContext('2d');
+const fgCtx = fgCanvas.getContext('2d');
+// `ctx` is the current draw target. The world layer is desaturated to express
+// the stolen colour; the foreground layer (Pinny + colourful bursts + HUD)
+// always stays at full colour, so Pinny never goes grey.
+let ctx = worldCtx;
 
 // Internal (virtual) resolution — the game world is drawn at this size,
 // then the canvas is scaled up with CSS to fill the phone screen.
@@ -126,14 +134,15 @@ const GRAV = 0.55;
 const MOVE = 0.7, MAXVX = 3.2, FRICT = 0.82;
 const JUMP_V = 9.6;
 
-canvas.width = VW; canvas.height = VH;
+worldCanvas.width = fgCanvas.width = VW; worldCanvas.height = fgCanvas.height = VH;
 
 // --- Fit the canvas to the screen while keeping aspect ratio ---
 function resize() {
   const availW = window.innerWidth, availH = window.innerHeight;
   const scale = Math.min(availW / VW, availH / VH);
-  canvas.style.width = Math.floor(VW * scale) + 'px';
-  canvas.style.height = Math.floor(VH * scale) + 'px';
+  const w = Math.floor(VW * scale) + 'px', h = Math.floor(VH * scale) + 'px';
+  worldCanvas.style.width = fgCanvas.style.width = w;
+  worldCanvas.style.height = fgCanvas.style.height = h;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -146,39 +155,109 @@ resize();
      o = fruit (score)        F = finish flag
    ------------------------------------------------------------------ */
 const LEVELS = [
+  // Level 1: Crabby Cove
   [
-    "............................................",
-    "............................................",
-    "..............o.....o.......................",
-    "............XXXXX..........o...........F.....",
-    ".................o......XXXX.........XXXXX...",
-    "....P......o..........................X......",
+    "..............................................",
+    "..............................................",
+    "..............o.....o.........................",
+    "............XXXXX..........o...........F......",
+    ".................o......XXXX.........XXXXX....",
+    "....P......o..........................X.......",
     "..XXXX...XXX......G.........G.....G....X......",
-    "..X..............................XXX..X......",
+    "..X..............................XXX..X.......",
     "..X....o..o...XXXXXXX....XXXX..........X......",
     "..X..XXXXXX..........G..............G..X......",
     "XXXX........XX..............XXXXXXXXXXXX......",
-    "X...................G........................",
+    "X...................G.........................",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
+  // Level 2: Tide Pools
   [
-    "..................................................",
-    ".........o.o.o....................................",
+    "...................................................",
+    ".........o.o.o.....................................",
     ".......XXXXXXX.........o......o..........F.........",
     "...................XXXXXX...XXXXXX....XXXXX........",
-    "...P.....G.....G.......................X..........",
-    ".XXXXX..XXX...XXX..G........G.....G....X..........",
-    ".X..........................XXX.XXX...X..........",
-    ".X...o...........o....o...............X..........",
-    ".X..XXXX......G..XXX..XXX......G..G....X..........",
-    ".X..........XXX...............XXXX.....X..........",
-    ".X..o..............G.....................X.......",
-    ".XXXX...XXXX....XXXXXXX...G......XXXXXXXXXX.......",
-    ".X......................XXXX.....................",
+    "...P.....G.....G.......................X...........",
+    ".XXXXX..XXX...XXX..G........G.....G....X...........",
+    ".X..........................XXX.XXX...X............",
+    ".X...o...........o....o...............X............",
+    ".X..XXXX......G..XXX..XXX......G..G....X...........",
+    ".X..........XXX...............XXXX.....X...........",
+    ".X..o..............G.....................X.........",
+    ".XXXX...XXXX....XXXXXXX...G......XXXXXXXXXX........",
+    ".X......................XXXX.......................",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
+  // Level 3: Palm Cove
+  [
+    ".................................................",
+    ".........o.....o........o........................",
+    ".......XXXXX...XXX.....XXXX......................",
+    ".................................................",
+    "....................o..........o.................",
+    "..................XXXXX......XXXXX..........o....",
+    "...o....................................XXXXX....",
+    ".XXX.............................................",
+    ".................................................",
+    ".................................................",
+    ".................................................",
+    "...P.....G........G.........G........G.......F...",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+  ],
+  // Level 4: Rocky Steps
+  [
+    ".................................................",
+    ".................................................",
+    "..........o.........o.........o..................",
+    "........XXXX......XXXX.......XXXX................",
+    ".................................................",
+    "....o..........o..........o.............o........",
+    "..XXXX.......XXXX.......XXXX..........XXXXX......",
+    ".................................................",
+    ".................................................",
+    ".................................................",
+    ".................................................",
+    "..P....G.....G......G.......G......G........F....",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+  ],
+  // Level 5: Grey Gauntlet
+  [
+    ".................................................",
+    "..........o......o.......o......o................",
+    "........XXX....XXX.....XXX....XXX................",
+    ".................................................",
+    "...o..........o.........o.........o.......o......",
+    ".XXXX.......XXXX......XXXX.......XXXX....XXXXX...",
+    ".................................................",
+    "..........o.........o.........o..................",
+    ".......XXXXX.....XXXXX.....XXXXX.................",
+    ".................................................",
+    ".................................................",
+    "..P...G....G....G....G....G....G....G......F.....",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+  ],
+  // Level 6: Colour Finale
+  [
+    ".................................................",
+    "....o....o....o....o....o....o....o....o....o....",
+    "...XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX...",
+    ".................................................",
+    ".................................................",
+    "......o..........o..........o..........o.........",
+    "....XXXXX......XXXXX......XXXXX......XXXXX.......",
+    ".................................................",
+    ".................................................",
+    ".................................................",
+    ".................................................",
+    ".P..G...G...G...G...G...G...G...G...G......F.....",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+  ]
 ];
 
 // --- Game state ---
@@ -371,14 +450,15 @@ function updateSaturation() {
   const rescued = totalGrey === 0 ? 1 : (totalGrey - greyLeft) / totalGrey;
   const sat = 0.35 + rescued * 0.65;          // washed-out grey world → 100% full colour
   const bright = 0.85 + rescued * 0.15;
-  canvas.style.filter = `saturate(${sat}) brightness(${bright})`;
+  worldCanvas.style.filter = `saturate(${sat}) brightness(${bright})`;
 }
 
 /* ---------------- Rendering ---------------- */
 function clamp01(v){return v<0?0:v>1?1:v;}
 
 function draw() {
-  // Sky gradient (colourfulness comes from the CSS saturation filter)
+  // ---------- WORLD LAYER (desaturated to show the stolen colour) ----------
+  ctx = worldCtx;
   const g = ctx.createLinearGradient(0,0,0,VH);
   g.addColorStop(0, '#8fd3ff'); g.addColorStop(0.6, '#bfeaff'); g.addColorStop(1, '#ffe6b3');
   ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
@@ -389,30 +469,24 @@ function draw() {
 
   ctx.save();
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
-
-  // Ground / blocks
-  for (const s of solids) drawBlock(s);
-
-  // Flag
-  if (flag) drawFlag(flag);
-
-  // Fruit
+  for (const s of solids) drawBlock(s);          // ground / blocks
+  if (flag) drawFlag(flag);                       // finish flag
   for (const f of fruits) if (!f.got) drawFruit(f);
-
-  // Enemies
   for (const c of enemies) if (!c.dead) drawGreyCrab(c);
+  ctx.restore();
 
-  // Player
+  // ---------- FOREGROUND LAYER (always full colour: Pinny, bursts, HUD) ----------
+  ctx = fgCtx;
+  ctx.clearRect(0,0,VW,VH);
+  ctx.save();
+  ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
   drawPinny(player);
-
-  // Particles
-  for (const pt of particles) {
+  for (const pt of particles) {                   // colourful rescue bursts pop
     ctx.globalAlpha = clamp01(pt.life/30);
     ctx.fillStyle = pt.col;
     ctx.fillRect(pt.x-pt.r/2, pt.y-pt.r/2, pt.r, pt.r);
   }
   ctx.globalAlpha = 1;
-
   ctx.restore();
 
   drawHUD();
@@ -631,6 +705,9 @@ const endScreen = document.getElementById('endScreen');
 
 function startGame() {
   levelIndex = 0; score = 0; lives = 3;
+  // Optional level jump: open the game with #3 in the URL to start on level 3.
+  const h = parseInt((location.hash || '').replace('#',''), 10);
+  if (h >= 1 && h <= LEVELS.length) levelIndex = h - 1;
   titleScreen.classList.add('hidden');
   endScreen.classList.add('hidden');
   buildLevel(levelIndex);

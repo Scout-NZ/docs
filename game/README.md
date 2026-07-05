@@ -36,7 +36,13 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump.
 
 - Everything is drawn with the HTML5 canvas — there are **no image or sound
   files**, so the whole game is just this one `index.html`.
-- It's a **prototype**: 2 short levels, deliberately easy and forgiving.
+- It's a **prototype**: **6 short levels**, deliberately easy and forgiving
+  (the crab count ramps up as you go, and every level has solid ground so a
+  young player can always reach the flag).
+- Pinny the pineapple crab **always stays full colour** — only the world around
+  her loses its colour, and it fills back in as you defeat the grey crabs.
 - Easy to extend — levels live in the `LEVELS` array near the top of the
   `<script>`, drawn as simple text maps:
   `X` = ground, `P` = Pinny's start, `G` = grey crab, `o` = fruit, `F` = flag.
+- **Jump to a level:** add `#3` (etc.) to the end of the URL to start on that
+  level — handy for showing off a favourite or picking up where you left off.
