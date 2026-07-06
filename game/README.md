@@ -38,11 +38,16 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
 
 - Everything is drawn with the HTML5 canvas — there are **no image or sound
   files**, so the whole game is just this one `index.html`.
-- It's a **prototype**: **6 themed worlds** — Emerald Falls, Coral Gear Coast,
-  Palm Cove, Box Mountains, Mushroom Marsh, and Monochrome Wasteland — each with
-  its own sky/palette, platform style (grass, wooden crate, mossy stone) and a
-  wooden name banner. Deliberately easy and forgiving (crab count ramps up, and
-  every world has solid ground so a young player can always reach the flag).
+- It's a **prototype**: **6 themed worlds plus a boss stage** — Emerald Falls,
+  Coral Gear Coast, Palm Cove, Box Mountains, Mushroom Marsh, Monochrome
+  Wasteland, and finally **Ashclaw's Keep**. Each world has its own sky/palette,
+  platform style (grass, wooden crate, mossy stone) and a wooden name banner.
+  Deliberately easy and forgiving (crab count ramps up, every world has solid
+  ground so a young player can always reach the flag, and the floating platforms
+  are all placed within jumping reach).
+- **Boss finale:** reach the end to face **General Ashclaw**, a giant spiky crab.
+  Stomp or claw him six times — each hit brings back more colour — to win. His
+  health shows in a bar at the top.
 - **Worlds start fully greyscale** (the grey crabs have drained the colour) and
   **fill back to full colour** as you defeat those crabs — the headline mechanic.
 - Pinny the pineapple crab **always stays full colour** — as do the watermelons,

@@ -194,71 +194,88 @@ const LEVELS = [
   ],
   // Level 3: Palm Cove
   [
-    ".................................................",
-    ".........o.....o........o........................",
-    ".......XXXXX...XXX.....XXXX......................",
-    ".................................................",
-    "....................o..........o.................",
-    "..................XXXXX......XXXXX..........o....",
-    "...o....................................XXXXX....",
-    ".XXX.............................................",
-    ".................................................",
-    ".................................................",
-    ".................................................",
-    "...P.....G........G.........G........G.......F...",
-    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
-    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...................o...........................",
+    ".................XXXX..........................",
+    ".......XXXX................XXXX.............o..",
+    "...XXXX........XXXX....XXXX........XXXXX.......",
+    "..P...G.....G......G......G....G.......F.......",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
   // Level 4: Rocky Steps
   [
-    ".................................................",
-    ".................................................",
-    "..........o.........o.........o..................",
-    "........XXXX......XXXX.......XXXX................",
-    ".................................................",
-    "....o..........o..........o.............o........",
-    "..XXXX.......XXXX.......XXXX..........XXXXX......",
-    ".................................................",
-    ".................................................",
-    ".................................................",
-    ".................................................",
-    "..P....G.....G......G.......G......G........F....",
-    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
-    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..........................o...................",
+    "........................XXXXX.................",
+    ".................XXXX.........................",
+    "..........XXXX................................",
+    "...XXXX........XXXX....XXXX.......XXXX........",
+    "..P....G......G.......G......G.....G....F.....",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
   // Level 5: Grey Gauntlet
   [
-    ".................................................",
-    "..........o......o.......o......o................",
-    "........XXX....XXX.....XXX....XXX................",
-    ".................................................",
-    "...o..........o.........o.........o.......o......",
-    ".XXXX.......XXXX......XXXX.......XXXX....XXXXX...",
-    ".................................................",
-    "..........o.........o.........o..................",
-    ".......XXXXX.....XXXXX.....XXXXX.................",
-    ".................................................",
-    ".................................................",
-    "..P...G....G....G....G....G....G....G......F.....",
-    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
-    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    ".........o.........o.........o................",
+    ".......XXXX.......XXXX.......XXXX.............",
+    "..............................................",
+    "....XXXX......XXXX......XXXX......XXXX........",
+    ".P..G...G....G....G....G....G....G.....F......",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
   // Level 6: Colour Finale
   [
-    ".................................................",
-    "....o....o....o....o....o....o....o....o....o....",
-    "...XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX...",
-    ".................................................",
-    ".................................................",
-    "......o..........o..........o..........o.........",
-    "....XXXXX......XXXXX......XXXXX......XXXXX.......",
-    ".................................................",
-    ".................................................",
-    ".................................................",
-    ".................................................",
-    ".P..G...G...G...G...G...G...G...G...G......F.....",
-    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
-    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX.",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "....o......o......o......o......o......o......",
+    "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
+    "..............................................",
+    "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
+    ".P..G..G..G..G..G..G..G..G..G..G..G....F......",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  ],
+  // Level 7: Ashclaw's Keep (BOSS)
+  [
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    ".........o............o............",
+    ".......XXXX..........XXXX..........",
+    "..P.............B..................",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ]
 ];
 
@@ -275,17 +292,18 @@ const THEMES = [
   { name:'BOX MOUNTAINS',       stage:'1-5', sky:['#3f9bd6','#7fc6f0','#a9d67a'], hills:['#8a9e5a','#6f8347'], block:'crate', kinds:['grey','crate'] },
   { name:'MUSHROOM MARSH',      stage:'1-6', sky:['#2a1b45','#4a2c6b','#7a4a86'], hills:['#3f2a5a','#2e1f45'], block:'stone', kinds:['grey','mushroom','flower'] },
   { name:'MONOCHROME WASTELAND',stage:'1-9', sky:['#3a3f47','#565c66','#7b828c'], hills:['#4a5058','#363b42'], block:'stone', kinds:['grey','crate','mushroom'] },
+  { name:"ASHCLAW'S KEEP",       stage:'BOSS',sky:['#241a2e','#3a2c42','#5a4560'], hills:['#2e2438','#201826'], block:'stone', kinds:['grey'] },
 ];
 
 // --- Game state ---
-let level, solids, enemies, fruits, flag, player, cam, theme;
+let level, solids, enemies, fruits, flag, player, cam, theme, boss;
 let totalGrey, greyLeft, score, melons, lives, levelIndex, running, particles;
 let timeT, bannerT;
 
 function buildLevel(idx) {
   const map = LEVELS[idx];
   theme = THEMES[idx] || THEMES[THEMES.length - 1];
-  solids = []; enemies = []; fruits = []; flag = null; particles = [];
+  solids = []; enemies = []; fruits = []; flag = null; boss = null; particles = [];
   let gi = 0; // crab index, used to cycle through this world's crab kinds
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
@@ -296,6 +314,7 @@ function buildLevel(idx) {
       else if (ch === 'G') { enemies.push(makeCrab(x, y, theme.kinds[gi % theme.kinds.length])); gi++; }
       else if (ch === 'o') fruits.push({ x: x + TILE/2, y: y + TILE/2, r: 7, got: false, bob: Math.random()*6.28 });
       else if (ch === 'F') flag = { x: x + 4, y: y - TILE, w: 8, h: TILE*2 };
+      else if (ch === 'B') boss = makeBoss(x, y);
     }
   }
   level = { w: map[0].length * TILE, h: map.length * TILE };
@@ -310,6 +329,11 @@ function makePlayer(x, y) {
 function makeCrab(x, y, kind) {
   return { x: x+3, y: y+6, w: 18, h: 14, kind: kind || 'grey', vx: (Math.random()<.5?-1:1)*0.7,
            dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3 };
+}
+function makeBoss(x, y) {
+  // General Ashclaw — big spiky crab. Beaten by 6 stomps/claws.
+  return { x: x-12, y: y-24, w: 42, h: 30, vx: 1.1, vy: 0, hp: 6, maxhp: 6,
+           hurt: 0, dead: false, wig: 0, name: 'GENERAL ASHCLAW' };
 }
 
 /* ---------------- Input ---------------- */
@@ -454,6 +478,34 @@ function update() {
     }
   }
 
+  // Boss fight
+  if (boss && !boss.dead) {
+    const bo = boss;
+    bo.wig += 0.15;
+    if (bo.hurt > 0) bo.hurt--;
+    const spd = 1.0 + (bo.maxhp - bo.hp) * 0.28;   // angrier (lower HP) = faster
+    bo.x += (bo.vx > 0 ? 1 : -1) * spd;
+    let hitw = false;
+    for (const s of solids) { if (aabb(bo, s)) { if (bo.vx>0) bo.x=s.x-bo.w; else bo.x=s.x+bo.w; hitw = true; } }
+    if (bo.x <= 0) { bo.x = 0; hitw = true; }
+    if (bo.x + bo.w >= level.w) { bo.x = level.w - bo.w; hitw = true; }
+    if (hitw) bo.vx *= -1;
+    bo.vy += GRAV; if (bo.vy > 12) bo.vy = 12; bo.y += bo.vy;
+    for (const s of solids) { if (aabb(bo, s)) { if (bo.vy > 0) bo.y = s.y - bo.h; bo.vy = 0; } }
+
+    if (atkBox && bo.hurt <= 0 && aabb(bo, atkBox)) hitBoss(p.face);   // claw hit
+    if (!boss.dead && aabb(p, bo)) {
+      const stomped = p.vy > 1.2 && (p.y + p.h) - bo.y < 16;
+      if (stomped && bo.hurt <= 0) { p.vy = -8.5; hitBoss(0); }
+      else if (!stomped && bo.hurt <= 0 && p.hurt <= 0) {
+        lives--; p.hurt = 90; p.vx = (p.x < bo.x ? -1 : 1) * 5; p.vy = -5;
+        spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
+        if (lives <= 0) return endGame(false);
+      }
+    }
+    if (!running) return;   // boss defeat may have ended the game
+  }
+
   // Fruit pickups
   for (const f of fruits) {
     if (f.got) continue;
@@ -494,9 +546,25 @@ function respawn() {
   player.vx = 0; player.vy = 0; player.hurt = 60;
 }
 
-// Global colour saturation reflects how much colour has been rescued.
+// Land a hit on the boss (stomp or claw). dir = knockback direction (0 = none).
+function hitBoss(dir) {
+  boss.hp--; boss.hurt = 40; score += 300;
+  if (dir) boss.vx = dir > 0 ? Math.abs(boss.vx) : -Math.abs(boss.vx);
+  spawnBurst(boss.x + boss.w/2, boss.y + boss.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c'], 22);
+  updateSaturation();
+  if (boss.hp <= 0) {
+    boss.dead = true;
+    spawnBurst(boss.x + boss.w/2, boss.y + boss.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c','#fff'], 44);
+    updateSaturation();
+    nextLevel();   // boss is the final stage → triggers the win screen
+  }
+}
+
+// Global colour saturation reflects how much colour has been rescued
+// (or, in the boss stage, how worn down the boss is).
 function updateSaturation() {
-  const rescued = totalGrey === 0 ? 1 : (totalGrey - greyLeft) / totalGrey;
+  const rescued = boss ? (boss.dead ? 1 : (boss.maxhp - boss.hp) / boss.maxhp)
+                       : (totalGrey === 0 ? 1 : (totalGrey - greyLeft) / totalGrey);
   const sat = rescued;                         // 0 = monochrome  →  1 = full colour
   const bright = 0.88 + rescued * 0.12;         // brightens a touch as colour returns
   worldCanvas.style.filter = `saturate(${sat}) brightness(${bright})`;
@@ -520,6 +588,7 @@ function draw() {
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
   for (const s of solids) drawBlock(s);            // ground / blocks (themed)
   for (const c of enemies) if (!c.dead) drawCrab(c); // hybrid crabs (grey until rescued)
+  if (boss && !boss.dead) drawBoss(boss);
   ctx.restore();
 
   // ---------- FOREGROUND LAYER (always full colour) ----------
@@ -782,6 +851,48 @@ function drawCrab(c) {
   ctx.restore();
 }
 
+// --- General Ashclaw, the boss: a big spiky crab. ---
+function drawBoss(bo) {
+  const flash = bo.hurt > 0 && (Math.floor(bo.hurt/4) % 2 === 0);
+  const wig = Math.sin(bo.wig) * 2;
+  const look = (bo.vx > 0 ? 0.9 : -0.9);
+  ctx.save();
+  ctx.translate(bo.x + bo.w/2, bo.y);
+
+  // legs
+  ctx.strokeStyle = '#33303a'; ctx.lineWidth = 3;
+  for (const dx of [-16,-9,9,16]) { ctx.beginPath(); ctx.moveTo(dx*0.7, 26); ctx.lineTo(dx, 30 + ((dx%2)?wig:-wig)); ctx.stroke(); }
+  // big claws
+  ctx.fillStyle = flash ? '#fff' : '#5a4a55';
+  ctx.beginPath(); ctx.arc(-20, 20, 8, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(20, 20, 8, 0, 6.28); ctx.fill();
+  ctx.fillStyle = flash ? '#fff' : '#46384a';
+  ctx.fillRect(-26, 15, 6, 5); ctx.fillRect(20, 15, 6, 5);
+  // horns
+  ctx.fillStyle = flash ? '#fff' : '#241f2a';
+  ctx.beginPath(); ctx.moveTo(-14,3); ctx.lineTo(-23,-13); ctx.lineTo(-7,-2); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(14,3);  ctx.lineTo(23,-13);  ctx.lineTo(7,-2);  ctx.closePath(); ctx.fill();
+  // shell
+  ctx.fillStyle = flash ? '#fff' : '#4a4048'; roundRect(-20, 2, 40, 24, 10); ctx.fill();
+  ctx.fillStyle = flash ? '#eee' : '#372f36'; roundRect(-20, 14, 40, 12, 8); ctx.fill();
+  // spikes along the top
+  ctx.fillStyle = flash ? '#fff' : '#5a5058';
+  for (const sx of [-9,0,9]) { ctx.beginPath(); ctx.moveTo(sx-3,3); ctx.lineTo(sx,-7); ctx.lineTo(sx+3,3); ctx.closePath(); ctx.fill(); }
+  // angry glowing eyes
+  ctx.fillStyle = '#ffd23f';
+  ctx.beginPath(); ctx.arc(-7,10,3.4,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(7,10,3.4,0,6.28); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(-7+look,10,1.6,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(7+look,10,1.6,0,6.28); ctx.fill();
+  // brows + frown
+  ctx.strokeStyle = '#17141a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-12,6); ctx.lineTo(-4,9); ctx.moveTo(12,6); ctx.lineTo(4,9); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,21,4,Math.PI+0.25,-0.25); ctx.stroke();
+
+  ctx.restore();
+}
+
 function roundRect(x,y,w,h,r) {
   ctx.beginPath();
   ctx.moveTo(x+r,y);
@@ -806,6 +917,16 @@ function drawHUD() {
   ctx.fillText('COLOUR', VW/2, barY+13);
   ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 7px system-ui';
   ctx.fillText(theme.name + '  ' + theme.stage, VW/2, barY+22);
+
+  // Boss health bar
+  if (boss && !boss.dead) {
+    const bw = 168, bx = VW/2 - bw/2, by = 42;
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(boss.name, VW/2, by - 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(bx-3, by-3, bw+6, 12, 5); ctx.fill();
+    ctx.fillStyle = '#3a1020'; roundRect(bx, by, bw, 6, 3); ctx.fill();
+    ctx.fillStyle = '#ff2e46'; roundRect(bx, by, Math.max(0, bw*(boss.hp/boss.maxhp)), 6, 3); ctx.fill();
+  }
 
   // Pinny portrait badge (top-left)
   drawPortrait(20, 20, 13);
@@ -911,7 +1032,7 @@ function endGame(won) {
   document.getElementById('endTitle').textContent = won ? 'Colour Rescued!' : 'Oh no!';
   document.getElementById('endStat').textContent = '★ ' + score + '     🍉 ' + melons;
   document.getElementById('endSub').textContent = won
-    ? 'Pinny brought all the colour back to Crabby World. You win! 🎉'
+    ? 'Pinny beat General Ashclaw and brought all the colour back to Crabby World. You win! 🎉'
     : 'The grey crabs got Pinny. Give it another go!';
   endScreen.classList.remove('hidden');
 }
