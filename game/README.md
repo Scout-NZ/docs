@@ -36,11 +36,19 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump.
 
 - Everything is drawn with the HTML5 canvas — there are **no image or sound
   files**, so the whole game is just this one `index.html`.
-- It's a **prototype**: **6 short levels**, deliberately easy and forgiving
-  (the crab count ramps up as you go, and every level has solid ground so a
-  young player can always reach the flag).
-- Pinny the pineapple crab **always stays full colour** — only the world around
-  her loses its colour, and it fills back in as you defeat the grey crabs.
+- It's a **prototype**: **6 themed worlds** — Emerald Falls, Coral Gear Coast,
+  Palm Cove, Box Mountains, Mushroom Marsh, and Monochrome Wasteland — each with
+  its own sky/palette, platform style (grass, wooden crate, mossy stone) and a
+  wooden name banner. Deliberately easy and forgiving (crab count ramps up, and
+  every world has solid ground so a young player can always reach the flag).
+- **Worlds start fully greyscale** (the grey crabs have drained the colour) and
+  **fill back to full colour** as you defeat those crabs — the headline mechanic.
+- Pinny the pineapple crab **always stays full colour** — as do the watermelons,
+  the flag and the HUD — so they're always easy to see even in a grey world.
+- **Collect watermelon slices** (🍉 counter) and earn **stars** (★) for defeating
+  crabs. HUD shows a Pinny portrait, hearts, the colour meter, and a level timer.
+- **Hybrid crab enemies:** grey, flower, mushroom, wooden crate, and red/hermit
+  crabs, themed per world.
 - Easy to extend — levels live in the `LEVELS` array near the top of the
   `<script>`, drawn as simple text maps:
   `X` = ground, `P` = Pinny's start, `G` = grey crab, `o` = fruit, `F` = flag.

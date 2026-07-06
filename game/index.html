@@ -260,20 +260,38 @@ const LEVELS = [
   ]
 ];
 
+/* ------------------------------------------------------------------
+   WORLD THEMES — one per level, matching the concept art.
+   Each world begins fully GREYSCALE and fills back to colour as its
+   grey crabs are defeated (see updateSaturation). blockStyle picks the
+   platform look; kinds are the hybrid crab types that live there.
+   ------------------------------------------------------------------ */
+const THEMES = [
+  { name:'EMERALD FALLS',       stage:'1-1', sky:['#7ec2ff','#bfeaff','#d4f0a8'], hills:['#7ec8a0','#5bb98a'], block:'grass', kinds:['grey','flower','red'] },
+  { name:'CORAL GEAR COAST',    stage:'1-4', sky:['#3f9bd6','#7fc6f0','#cdeeff'], hills:['#4f9fb5','#3d7f95'], block:'stone', kinds:['grey','crate','red'] },
+  { name:'PALM COVE',           stage:'1-2', sky:['#6fc8ff','#bfeaff','#ffe6b3'], hills:['#7ec8a0','#5bb98a'], block:'grass', kinds:['grey','flower','red'] },
+  { name:'BOX MOUNTAINS',       stage:'1-5', sky:['#3f9bd6','#7fc6f0','#a9d67a'], hills:['#8a9e5a','#6f8347'], block:'crate', kinds:['grey','crate'] },
+  { name:'MUSHROOM MARSH',      stage:'1-6', sky:['#2a1b45','#4a2c6b','#7a4a86'], hills:['#3f2a5a','#2e1f45'], block:'stone', kinds:['grey','mushroom','flower'] },
+  { name:'MONOCHROME WASTELAND',stage:'1-9', sky:['#3a3f47','#565c66','#7b828c'], hills:['#4a5058','#363b42'], block:'stone', kinds:['grey','crate','mushroom'] },
+];
+
 // --- Game state ---
-let level, solids, enemies, fruits, flag, player, cam;
-let totalGrey, greyLeft, score, lives, levelIndex, running, particles;
+let level, solids, enemies, fruits, flag, player, cam, theme;
+let totalGrey, greyLeft, score, melons, lives, levelIndex, running, particles;
+let timeT, bannerT;
 
 function buildLevel(idx) {
   const map = LEVELS[idx];
+  theme = THEMES[idx] || THEMES[THEMES.length - 1];
   solids = []; enemies = []; fruits = []; flag = null; particles = [];
+  let gi = 0; // crab index, used to cycle through this world's crab kinds
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
       const ch = map[r][c];
       const x = c * TILE, y = r * TILE;
       if (ch === 'X') solids.push({ x, y, w: TILE, h: TILE });
       else if (ch === 'P') player = makePlayer(x, y);
-      else if (ch === 'G') enemies.push(makeCrab(x, y));
+      else if (ch === 'G') { enemies.push(makeCrab(x, y, theme.kinds[gi % theme.kinds.length])); gi++; }
       else if (ch === 'o') fruits.push({ x: x + TILE/2, y: y + TILE/2, r: 7, got: false, bob: Math.random()*6.28 });
       else if (ch === 'F') flag = { x: x + 4, y: y - TILE, w: 8, h: TILE*2 };
     }
@@ -281,13 +299,15 @@ function buildLevel(idx) {
   level = { w: map[0].length * TILE, h: map.length * TILE };
   totalGrey = enemies.length; greyLeft = enemies.length;
   cam = { x: 0, y: 0 };
+  timeT = 0; bannerT = 120;   // per-level timer + level-name banner
 }
 
 function makePlayer(x, y) {
   return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0 };
 }
-function makeCrab(x, y) {
-  return { x: x+3, y: y+6, w: 18, h: 14, vx: (Math.random()<.5?-1:1)*0.7, dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3 };
+function makeCrab(x, y, kind) {
+  return { x: x+3, y: y+6, w: 18, h: 14, kind: kind || 'grey', vx: (Math.random()<.5?-1:1)*0.7,
+           dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3 };
 }
 
 /* ---------------- Input ---------------- */
@@ -353,6 +373,9 @@ function spawnBurst(x, y, colors, n=14) {
 function update() {
   const p = player;
 
+  timeT += 1/60;                 // level timer (display only)
+  if (bannerT > 0) bannerT--;    // level-name banner fade
+
   // Horizontal input
   if (keys.left)  { p.vx -= MOVE; p.face = -1; }
   if (keys.right) { p.vx += MOVE; p.face = 1; }
@@ -410,8 +433,8 @@ function update() {
     if (f.got) continue;
     f.bob += 0.1;
     if (aabb(p, {x:f.x-f.r, y:f.y-f.r, w:f.r*2, h:f.r*2})) {
-      f.got = true; score += 50;
-      spawnBurst(f.x, f.y, ['#3ddc84','#ffd23f','#fff']);
+      f.got = true; melons++; score += 25;
+      spawnBurst(f.x, f.y, ['#ff5a5f','#2f9e44','#ff8fa3','#fff']);
     }
   }
 
@@ -448,8 +471,8 @@ function respawn() {
 // Global colour saturation reflects how much colour has been rescued.
 function updateSaturation() {
   const rescued = totalGrey === 0 ? 1 : (totalGrey - greyLeft) / totalGrey;
-  const sat = 0.35 + rescued * 0.65;          // washed-out grey world → 100% full colour
-  const bright = 0.85 + rescued * 0.15;
+  const sat = rescued;                         // 0 = monochrome  →  1 = full colour
+  const bright = 0.88 + rescued * 0.12;         // brightens a touch as colour returns
   worldCanvas.style.filter = `saturate(${sat}) brightness(${bright})`;
 }
 
@@ -457,31 +480,33 @@ function updateSaturation() {
 function clamp01(v){return v<0?0:v>1?1:v;}
 
 function draw() {
-  // ---------- WORLD LAYER (desaturated to show the stolen colour) ----------
+  // ---------- WORLD LAYER (starts greyscale; colour returns via CSS filter) ----------
   ctx = worldCtx;
   const g = ctx.createLinearGradient(0,0,0,VH);
-  g.addColorStop(0, '#8fd3ff'); g.addColorStop(0.6, '#bfeaff'); g.addColorStop(1, '#ffe6b3');
+  g.addColorStop(0, theme.sky[0]); g.addColorStop(0.6, theme.sky[1]); g.addColorStop(1, theme.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
 
-  // Parallax hills
-  drawHills(cam.x*0.3, '#7ec8a0', VH-70);
-  drawHills(cam.x*0.5 + 120, '#5bb98a', VH-45);
+  // Parallax hills (per-theme colours)
+  drawHills(cam.x*0.3, theme.hills[0], VH-70);
+  drawHills(cam.x*0.5 + 120, theme.hills[1], VH-45);
 
   ctx.save();
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
-  for (const s of solids) drawBlock(s);          // ground / blocks
-  if (flag) drawFlag(flag);                       // finish flag
-  for (const f of fruits) if (!f.got) drawFruit(f);
-  for (const c of enemies) if (!c.dead) drawGreyCrab(c);
+  for (const s of solids) drawBlock(s);            // ground / blocks (themed)
+  for (const c of enemies) if (!c.dead) drawCrab(c); // hybrid crabs (grey until rescued)
   ctx.restore();
 
-  // ---------- FOREGROUND LAYER (always full colour: Pinny, bursts, HUD) ----------
+  // ---------- FOREGROUND LAYER (always full colour) ----------
+  // Pinny, the watermelons, the flag and the rescue bursts stay vivid so
+  // they're always visible even while the world is grey.
   ctx = fgCtx;
   ctx.clearRect(0,0,VW,VH);
   ctx.save();
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+  if (flag) drawFlag(flag);
+  for (const f of fruits) if (!f.got) drawFruit(f);
   drawPinny(player);
-  for (const pt of particles) {                   // colourful rescue bursts pop
+  for (const pt of particles) {
     ctx.globalAlpha = clamp01(pt.life/30);
     ctx.fillStyle = pt.col;
     ctx.fillRect(pt.x-pt.r/2, pt.y-pt.r/2, pt.r, pt.r);
@@ -504,34 +529,46 @@ function drawHills(offset, col, baseY) {
 }
 
 function drawBlock(s) {
+  if (theme.block === 'crate') {           // wooden crate platforms (Box Mountains)
+    ctx.fillStyle = '#a9713c'; ctx.fillRect(s.x, s.y, s.w, s.h);
+    ctx.fillStyle = '#8a5a2c'; ctx.fillRect(s.x, s.y, s.w, 2); ctx.fillRect(s.x, s.y+s.h-2, s.w, 2);
+    ctx.strokeStyle = '#6e461f'; ctx.lineWidth = 1;
+    ctx.strokeRect(s.x+1.5, s.y+1.5, s.w-3, s.h-3);
+    ctx.beginPath(); ctx.moveTo(s.x+2, s.y+2); ctx.lineTo(s.x+s.w-2, s.y+s.h-2);
+                     ctx.moveTo(s.x+s.w-2, s.y+2); ctx.lineTo(s.x+2, s.y+s.h-2); ctx.stroke();
+    ctx.fillStyle = '#4d3016';
+    for (const [dx,dy] of [[3,3],[s.w-3,3],[3,s.h-3],[s.w-3,s.h-3]]) { ctx.fillRect(s.x+dx-1, s.y+dy-1, 2, 2); }
+    return;
+  }
+  if (theme.block === 'stone') {           // mossy stone (Coral/Marsh/Wasteland)
+    ctx.fillStyle = '#8b9099'; ctx.fillRect(s.x, s.y, s.w, s.h);
+    ctx.fillStyle = '#6f747d'; ctx.fillRect(s.x, s.y+6, 3, s.h-6); ctx.fillRect(s.x+s.w-3, s.y+6, 3, s.h-6);
+    ctx.fillStyle = '#a6abb4'; ctx.fillRect(s.x+5, s.y+9, 4, 3); ctx.fillRect(s.x+13, s.y+14, 3, 3);
+    ctx.fillStyle = '#4a7a3f'; ctx.fillRect(s.x, s.y, s.w, 5);      // moss cap
+    ctx.fillStyle = '#5c9b4d'; ctx.fillRect(s.x+3, s.y-2, 2, 3); ctx.fillRect(s.x+11, s.y-3, 2, 4); ctx.fillRect(s.x+18, s.y-2, 2, 3);
+    return;
+  }
+  // default: grassy dirt (Emerald Falls / Palm Cove)
   const grassTop = 6;
-  // dirt
-  ctx.fillStyle = '#b5763d';
-  ctx.fillRect(s.x, s.y, s.w, s.h);
-  ctx.fillStyle = '#9c5f2c';
-  ctx.fillRect(s.x, s.y+grassTop, 3, s.h-grassTop);
-  ctx.fillRect(s.x+s.w-3, s.y+grassTop, 3, s.h-grassTop);
-  // grass cap
-  ctx.fillStyle = '#3ddc84';
-  ctx.fillRect(s.x, s.y, s.w, grassTop);
-  ctx.fillStyle = '#2fb96a';
-  ctx.fillRect(s.x, s.y+grassTop, s.w, 2);
-  // little grass blades
+  ctx.fillStyle = '#b5763d'; ctx.fillRect(s.x, s.y, s.w, s.h);
+  ctx.fillStyle = '#9c5f2c'; ctx.fillRect(s.x, s.y+grassTop, 3, s.h-grassTop); ctx.fillRect(s.x+s.w-3, s.y+grassTop, 3, s.h-grassTop);
+  ctx.fillStyle = '#3ddc84'; ctx.fillRect(s.x, s.y, s.w, grassTop);
+  ctx.fillStyle = '#2fb96a'; ctx.fillRect(s.x, s.y+grassTop, s.w, 2);
   ctx.fillStyle = '#4dee97';
-  ctx.fillRect(s.x+4, s.y-2, 2, 3);
-  ctx.fillRect(s.x+12, s.y-3, 2, 4);
-  ctx.fillRect(s.x+19, s.y-2, 2, 3);
+  ctx.fillRect(s.x+4, s.y-2, 2, 3); ctx.fillRect(s.x+12, s.y-3, 2, 4); ctx.fillRect(s.x+19, s.y-2, 2, 3);
 }
 
+// Watermelon slice — the collectible ("colour is life!").
 function drawFruit(f) {
   const y = f.y + Math.sin(f.bob)*3;
-  // sparkle gem-style fruit
-  ctx.fillStyle = '#ffd23f';
-  ctx.beginPath(); ctx.arc(f.x, y, f.r, 0, 6.28); ctx.fill();
-  ctx.fillStyle = '#ff9d3c';
-  ctx.beginPath(); ctx.arc(f.x, y+1, f.r*0.55, 0, 6.28); ctx.fill();
-  ctx.fillStyle = '#fff6c9';
-  ctx.beginPath(); ctx.arc(f.x-2, y-2, 1.6, 0, 6.28); ctx.fill();
+  ctx.save(); ctx.translate(f.x, y); ctx.rotate(Math.sin(f.bob*0.5)*0.15);
+  ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.arc(0,0,8,Math.PI,0); ctx.closePath(); ctx.fill();   // dark rind
+  ctx.fillStyle = '#8ce99a'; ctx.beginPath(); ctx.arc(0,-0.5,6.6,Math.PI,0); ctx.closePath(); ctx.fill(); // light rind
+  ctx.fillStyle = '#ff5a5f'; ctx.beginPath(); ctx.arc(0,-1,5.2,Math.PI,0); ctx.closePath(); ctx.fill();   // flesh
+  ctx.fillStyle = '#3a2020';                                                                              // seeds
+  ctx.fillRect(-3,-3.4,1,1.6); ctx.fillRect(2,-3.4,1,1.6); ctx.fillRect(-0.5,-2,1,1.6);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(-3.5,-4.6,2,1);                                    // shine
+  ctx.restore();
 }
 
 function drawFlag(fl) {
@@ -571,6 +608,15 @@ function drawPinny(p) {
   ctx.fillStyle = '#e85f22';
   ctx.fillRect(-12, 7, 2, 3); ctx.fillRect(9, 6, 2, 3);
 
+  // watermelon-slice "wings" either side of the head
+  for (const sgn of [-1, 1]) {
+    ctx.save(); ctx.translate(sgn*11, 8); ctx.rotate(sgn*0.55);
+    ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.arc(0,0,6,Math.PI,0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff5a5f'; ctx.beginPath(); ctx.arc(0,-0.4,4.4,Math.PI,0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3a2020'; ctx.fillRect(-1.6,-2,0.9,1.2); ctx.fillRect(0.7,-2,0.9,1.2);
+    ctx.restore();
+  }
+
   // pineapple body (rounded)
   ctx.fillStyle = '#ffc93c';
   roundRect(-9, 2, 18, 15, 6); ctx.fill();
@@ -604,51 +650,90 @@ function drawPinny(p) {
     ctx.strokeStyle='#22203a'; ctx.lineWidth=1.4;
     ctx.beginPath(); ctx.moveTo(-1,8); ctx.lineTo(5,8); ctx.stroke();
   }
-  // little smile
-  ctx.strokeStyle = '#b5651d'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.arc(0, 13, 2.2, 0.1, Math.PI-0.1); ctx.stroke();
+  // big toothy grin
+  ctx.fillStyle = '#7a3b1a';
+  ctx.beginPath(); ctx.arc(1, 12.5, 3.2, 0.05, Math.PI-0.05); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ff6f8a';                                   // tongue
+  ctx.beginPath(); ctx.arc(1, 13.6, 1.5, 0, Math.PI); ctx.fill();
+  ctx.fillStyle = '#fff';                                      // teeth
+  ctx.fillRect(-1.4, 11.4, 4.8, 1.3);
 
   ctx.restore();
   ctx.globalAlpha = 1;
 }
 
-// --- Grey crab enemy (colour thief) ---
-function drawGreyCrab(c) {
+// --- Hybrid crab enemies ---
+// Every crab shares the same grumpy body; `kind` swaps the palette and adds
+// a topper (flowers, mushroom cap, wooden crate). They all render in their
+// own colours but the world layer keeps them grey until the colour is rescued.
+const CRAB_PALETTE = {
+  grey:    { shell:'#9a9a9a', shell2:'#7d7d7d', leg:'#666',    claw:'#8a8a8a', line:'#4d4d4d' },
+  flower:  { shell:'#6fae4a', shell2:'#548a36', leg:'#4a7a34', claw:'#7dbe58', line:'#3c6b2a' },
+  mushroom:{ shell:'#c9a06a', shell2:'#a67f49', leg:'#7a5a34', claw:'#b98f5a', line:'#6a4a2a' },
+  crate:   { shell:'#a9713c', shell2:'#875a2c', leg:'#6a4420', claw:'#b5813c', line:'#5a3a1a' },
+  red:     { shell:'#e0592f', shell2:'#b5401f', leg:'#8a3018', claw:'#ff7a3c', line:'#7a2a12' },
+};
+
+function drawCrab(c) {
   const wig = Math.sin(c.wig)*1.2;
+  const kind = c.kind || 'grey';
+  const P = CRAB_PALETTE[kind] || CRAB_PALETTE.grey;
+  const look = (c.vx > 0 ? 0.6 : -0.6);
   ctx.save();
   ctx.translate(c.x + c.w/2, c.y);
 
-  // faint grey "drain" aura
-  ctx.fillStyle = 'rgba(120,120,120,0.18)';
-  ctx.beginPath(); ctx.arc(0, 8, 16, 0, 6.28); ctx.fill();
+  // faint "drain" aura
+  ctx.fillStyle = 'rgba(120,120,120,0.15)';
+  ctx.beginPath(); ctx.arc(0, 8, 15, 0, 6.28); ctx.fill();
 
   // legs
-  ctx.strokeStyle = '#666'; ctx.lineWidth = 2;
+  ctx.strokeStyle = P.leg; ctx.lineWidth = 2;
   for (const dx of [-7,-3]) {
     ctx.beginPath(); ctx.moveTo(dx,10); ctx.lineTo(dx-3,15+wig); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-dx,10); ctx.lineTo(-dx+3,15-wig); ctx.stroke();
   }
   // claws
-  ctx.fillStyle = '#8a8a8a';
+  ctx.fillStyle = P.claw;
   ctx.beginPath(); ctx.arc(-10,7,3.5,0,6.28); ctx.fill();
   ctx.beginPath(); ctx.arc(10,7,3.5,0,6.28); ctx.fill();
-  // shell
-  ctx.fillStyle = '#9a9a9a';
-  roundRect(-8, 1, 16, 11, 6); ctx.fill();
-  ctx.fillStyle = '#7d7d7d';
-  roundRect(-8, 7, 16, 5, 4); ctx.fill();
+
+  // shell (box for crate crabs, rounded otherwise)
+  if (kind === 'crate') {
+    ctx.fillStyle = P.shell; ctx.fillRect(-8, 0, 16, 12);
+    ctx.strokeStyle = P.shell2; ctx.lineWidth = 1.2; ctx.strokeRect(-7.3, 0.6, 14.6, 10.8);
+    ctx.beginPath(); ctx.moveTo(-8,4); ctx.lineTo(8,4); ctx.moveTo(-8,8); ctx.lineTo(8,8); ctx.stroke();
+  } else {
+    ctx.fillStyle = P.shell;  roundRect(-8, 1, 16, 11, 6); ctx.fill();
+    ctx.fillStyle = P.shell2; roundRect(-8, 7, 16, 5, 4);  ctx.fill();
+  }
+
+  // topper decorations (drawn above the eyes so nothing is hidden)
+  if (kind === 'flower') {
+    for (const fx of [-4.5, 4.5]) {
+      ctx.fillStyle = '#ff6f9d';
+      for (let a=0;a<5;a++){ const ang=a/5*6.28; ctx.beginPath(); ctx.arc(fx+Math.cos(ang)*2, -6+Math.sin(ang)*2, 1.4, 0, 6.28); ctx.fill(); }
+      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(fx, -6, 1.3, 0, 6.28); ctx.fill();
+    }
+  } else if (kind === 'mushroom') {
+    ctx.fillStyle = '#d63a3a'; ctx.beginPath(); ctx.arc(0, -5, 8, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-3,-7,1.2,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(3,-8,1.1,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(0,-9.5,1,0,6.28); ctx.fill();
+  }
+
   // eyes on stalks
-  ctx.strokeStyle='#6b6b6b'; ctx.lineWidth=1.5;
+  ctx.strokeStyle = P.shell2; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(-3,2); ctx.lineTo(-3,-2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(3,2); ctx.lineTo(3,-2); ctx.stroke();
-  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.moveTo(3,2);  ctx.lineTo(3,-2);  ctx.stroke();
+  ctx.fillStyle = '#fff';
   ctx.beginPath(); ctx.arc(-3,-3,2,0,6.28); ctx.fill();
   ctx.beginPath(); ctx.arc(3,-3,2,0,6.28); ctx.fill();
-  ctx.fillStyle='#222';
-  ctx.beginPath(); ctx.arc(-3+(c.vx>0?0.6:-0.6),-3,1,0,6.28); ctx.fill();
-  ctx.beginPath(); ctx.arc(3+(c.vx>0?0.6:-0.6),-3,1,0,6.28); ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(-3+look,-3,1,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(3+look,-3,1,0,6.28); ctx.fill();
   // grumpy mouth
-  ctx.strokeStyle='#4d4d4d'; ctx.lineWidth=1.2;
+  ctx.strokeStyle = P.line; ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.arc(0,10,2.2,Math.PI+0.1,-0.1); ctx.stroke();
 
   ctx.restore();
@@ -665,28 +750,82 @@ function roundRect(x,y,w,h,r) {
 }
 
 function drawHUD() {
-  // Colour meter (top center) — how much of the world's colour is rescued
   const rescued = totalGrey===0 ? 1 : (totalGrey-greyLeft)/totalGrey;
-  const barW = 120, barX = VW/2 - barW/2, barY = 10;
-  ctx.fillStyle = 'rgba(0,0,0,0.28)'; roundRect(barX-3, barY-3, barW+6, 14, 6); ctx.fill();
-  ctx.fillStyle = '#555'; roundRect(barX, barY, barW, 8, 4); ctx.fill();
+
+  // Colour meter (top centre) + world name
+  const barW = 108, barX = VW/2 - barW/2, barY = 9;
+  ctx.fillStyle = 'rgba(0,0,0,0.32)'; roundRect(barX-3, barY-3, barW+6, 12, 6); ctx.fill();
+  ctx.fillStyle = '#555'; roundRect(barX, barY, barW, 6, 3); ctx.fill();
   const grd = ctx.createLinearGradient(barX,0,barX+barW,0);
   grd.addColorStop(0,'#ff5f8d'); grd.addColorStop(.5,'#ffd23f'); grd.addColorStop(1,'#3ddc84');
-  ctx.fillStyle = grd; roundRect(barX, barY, Math.max(4,barW*rescued), 8, 4); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 8px system-ui'; ctx.textAlign='center';
-  ctx.fillText('COLOUR', VW/2, barY+18);
+  ctx.fillStyle = grd; roundRect(barX, barY, Math.max(4,barW*rescued), 6, 3); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 7px system-ui'; ctx.textAlign='center';
+  ctx.fillText('COLOUR', VW/2, barY+13);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 7px system-ui';
+  ctx.fillText(theme.name + '  ' + theme.stage, VW/2, barY+22);
 
-  // Lives (hearts) top-left
-  ctx.textAlign = 'left';
-  for (let i=0;i<lives;i++) { ctx.fillStyle = '#ff5f8d'; heart(10 + i*16, 12, 5); }
+  // Pinny portrait badge (top-left)
+  drawPortrait(20, 20, 13);
 
-  // Score top-right
-  ctx.fillStyle = '#3a1030'; ctx.font = 'bold 12px system-ui'; ctx.textAlign='right';
-  ctx.fillText('★ ' + score, VW-8, 17);
+  // Lives (hearts)
+  for (let i=0;i<lives;i++) { ctx.fillStyle = '#ff3b5c'; heart(40 + i*13, 9, 4.4); }
 
-  // Level label
-  ctx.fillStyle = 'rgba(58,16,48,0.75)'; ctx.font='bold 9px system-ui'; ctx.textAlign='left';
-  ctx.fillText('LEVEL ' + (levelIndex+1), 10, 26);
+  // Watermelon counter
+  drawMelonIcon(43, 27, 4);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('× ' + melons, 51, 31);
+
+  // Star score + level timer (top-right)
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#ffd23f'; ctx.font = 'bold 13px system-ui'; ctx.fillText('★ ' + score, VW-8, 17);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 10px system-ui'; ctx.fillText(fmtTime(timeT), VW-8, 31);
+
+  // Level-name banner (fades out over its lifetime)
+  if (bannerT > 0) drawBanner();
+}
+
+// Round portrait of Pinny for the HUD corner.
+function drawPortrait(x, y, r) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 6.28); ctx.fillStyle = '#2a1546'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#ffd23f'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, r-1.2, 0, 6.28); ctx.clip();
+  // mini watermelon wings
+  for (const sgn of [-1,1]) { ctx.fillStyle = '#ff5a5f';
+    ctx.beginPath(); ctx.arc(x+sgn*7, y+2, 3.2, Math.PI, 0); ctx.closePath(); ctx.fill(); }
+  // pineapple face
+  ctx.fillStyle = '#ffc93c'; roundRect(x-6, y-3, 12, 11, 5); ctx.fill();
+  ctx.fillStyle = '#3ddc84';
+  for (const lx of [-3,0,3]) { ctx.beginPath(); ctx.moveTo(x+lx, y-2); ctx.lineTo(x+lx-2, y-8); ctx.lineTo(x+lx+2, y-8); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x+1, y+2, 3.2, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#22203a'; ctx.beginPath(); ctx.arc(x+2, y+2.4, 1.5, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+
+function drawMelonIcon(x, y, r) {
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.arc(0,0,r,Math.PI,0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ff5a5f'; ctx.beginPath(); ctx.arc(0,-0.4,r-1.3,Math.PI,0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#3a2020'; ctx.fillRect(-1.4,-1.6,0.8,1); ctx.fillRect(0.7,-1.6,0.8,1);
+  ctx.restore();
+}
+
+function fmtTime(t) {
+  t = Math.floor(t); const m = (t/60)|0, s = t%60;
+  return m + ':' + (s<10?'0':'') + s;
+}
+
+function drawBanner() {
+  const alpha = bannerT < 25 ? bannerT/25 : 1;
+  ctx.globalAlpha = alpha;
+  const w = 220, h = 46, x = VW/2 - w/2, yy = 52;
+  ctx.fillStyle = '#5a3418'; roundRect(x, yy, w, h, 9); ctx.fill();
+  ctx.fillStyle = '#8a5a2c'; roundRect(x+3, yy+3, w-6, h-6, 7); ctx.fill();
+  ctx.fillStyle = '#6e461f'; ctx.lineWidth = 1.5; roundRect(x+3, yy+3, w-6, h-6, 7); ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffe9a8'; ctx.font = 'bold 16px system-ui'; ctx.fillText(theme.name, VW/2, yy+23);
+  ctx.fillStyle = '#ffd23f'; ctx.font = 'bold 11px system-ui'; ctx.fillText('STAGE ' + theme.stage, VW/2, yy+37);
+  ctx.globalAlpha = 1;
 }
 
 function heart(x,y,s) {
@@ -704,7 +843,7 @@ const titleScreen = document.getElementById('titleScreen');
 const endScreen = document.getElementById('endScreen');
 
 function startGame() {
-  levelIndex = 0; score = 0; lives = 3;
+  levelIndex = 0; score = 0; melons = 0; lives = 3;
   // Optional level jump: open the game with #3 in the URL to start on level 3.
   const h = parseInt((location.hash || '').replace('#',''), 10);
   if (h >= 1 && h <= LEVELS.length) levelIndex = h - 1;
@@ -727,7 +866,7 @@ function endGame(won) {
   running = false;
   document.getElementById('endEmoji').textContent = won ? '🌈🍍' : '😵';
   document.getElementById('endTitle').textContent = won ? 'Colour Rescued!' : 'Oh no!';
-  document.getElementById('endStat').textContent = '★ Score: ' + score;
+  document.getElementById('endStat').textContent = '★ ' + score + '     🍉 ' + melons;
   document.getElementById('endSub').textContent = won
     ? 'Pinny brought all the colour back to Crabby World. You win! 🎉'
     : 'The grey crabs got Pinny. Give it another go!';
@@ -746,6 +885,7 @@ function frame() {
   requestAnimationFrame(frame);
 }
 // draw an idle backdrop behind the title so the canvas isn't blank
+score = 0; melons = 0; lives = 3;
 buildLevel(0); updateSaturation(); draw();
 requestAnimationFrame(frame);
 </script>
