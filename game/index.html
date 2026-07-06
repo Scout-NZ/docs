@@ -31,7 +31,7 @@
   #controls { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
   .pad {
     position: absolute; bottom: max(18px, env(safe-area-inset-bottom));
-    display: flex; gap: 14px; pointer-events: none;
+    display: flex; align-items: flex-end; gap: 14px; pointer-events: none;
   }
   #padL { left: max(16px, env(safe-area-inset-left)); }
   #padR { right: max(16px, env(safe-area-inset-right)); }
@@ -45,6 +45,7 @@
     backdrop-filter: blur(2px);
   }
   #jump { width: 96px; height: 96px; font-size: 22px; background: rgba(255,214,102,0.75); border-color: #ffe9a8; }
+  #claw { width: 76px; height: 76px; font-size: 16px; color: #5a1e10; background: rgba(255,138,80,0.8); border-color: #ffcaa0; }
   .btn.press { transform: translateY(3px) scale(0.96); box-shadow: 0 1px 0 rgba(0,0,0,0.25), inset 0 3px 8px rgba(255,255,255,0.6); background: rgba(255,255,255,0.85); }
 
   /* ---- Overlays (title / win / lose) ---- */
@@ -83,6 +84,7 @@
       <div class="btn" id="right">▶</div>
     </div>
     <div class="pad" id="padR">
+      <div class="btn" id="claw">CLAW</div>
       <div class="btn" id="jump">JUMP</div>
     </div>
   </div>
@@ -93,7 +95,7 @@
     <div class="title">CRABBY WORLD<br/>The Colour Rescue</div>
     <div class="sub">The grey crabs stole all the colour! Help <b>Pinny</b>, the one-eyed pineapple crab, bounce on them to bring the world back to life.</div>
     <button class="play" id="startBtn">PLAY ▶</button>
-    <div class="hint">Tap ◀ ▶ to walk &nbsp;•&nbsp; Tap JUMP to hop &nbsp;•&nbsp; Land on grey crabs!</div>
+    <div class="hint">Tap ◀ ▶ to walk &nbsp;•&nbsp; JUMP to hop &nbsp;•&nbsp; CLAW to swipe crabs &nbsp;•&nbsp; or bounce on them!</div>
   </div>
 
   <!-- End screen (win/lose) -->
@@ -303,7 +305,7 @@ function buildLevel(idx) {
 }
 
 function makePlayer(x, y) {
-  return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0 };
+  return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0, atk: 0, atkCd: 0 };
 }
 function makeCrab(x, y, kind) {
   return { x: x+3, y: y+6, w: 18, h: 14, kind: kind || 'grey', vx: (Math.random()<.5?-1:1)*0.7,
@@ -311,10 +313,10 @@ function makeCrab(x, y, kind) {
 }
 
 /* ---------------- Input ---------------- */
-const keys = { left: false, right: false, jump: false, jumpQueued: false };
+const keys = { left: false, right: false, jump: false, jumpQueued: false, attack: false, attackQueued: false };
 function bindBtn(id, key) {
   const el = document.getElementById(id);
-  const on = (e) => { e.preventDefault(); keys[key] = true; if (key==='jump') keys.jumpQueued = true; el.classList.add('press'); };
+  const on = (e) => { e.preventDefault(); keys[key] = true; if (key==='jump') keys.jumpQueued = true; if (key==='attack') keys.attackQueued = true; el.classList.add('press'); };
   const off = (e) => { e.preventDefault(); keys[key] = false; el.classList.remove('press'); };
   el.addEventListener('touchstart', on, {passive:false});
   el.addEventListener('touchend', off, {passive:false});
@@ -322,18 +324,21 @@ function bindBtn(id, key) {
   el.addEventListener('mousedown', on);
   window.addEventListener('mouseup', off);
 }
-bindBtn('left','left'); bindBtn('right','right'); bindBtn('jump','jump');
+bindBtn('left','left'); bindBtn('right','right'); bindBtn('jump','jump'); bindBtn('claw','attack');
 
+const isAtk = (k) => k==='x' || k==='k' || k==='j' || k==='Shift';
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
   if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
   if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') { keys.jump = true; keys.jumpQueued = true; }
+  if (isAtk(e.key)) { keys.attack = true; keys.attackQueued = true; }
 });
 window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
   if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
   if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') keys.jump = false;
+  if (isAtk(e.key)) keys.attack = false;
 });
 
 /* ---------------- Physics helpers ---------------- */
@@ -387,6 +392,12 @@ function update() {
   if ((keys.jump || keys.jumpQueued) && p.onGround) { p.vy = -JUMP_V; p.onGround = false; }
   keys.jumpQueued = false;
 
+  // Claw attack — a quick swipe in front of Pinny, with a short cooldown
+  if (p.atkCd > 0) p.atkCd--;
+  if (p.atk > 0) p.atk--;
+  if ((keys.attack || keys.attackQueued) && p.atk <= 0 && p.atkCd <= 0) { p.atk = 14; p.atkCd = 26; }
+  keys.attackQueued = false;
+
   p.vy += GRAV;
   if (p.vy > 12) p.vy = 12;
   moveAndCollide(p);
@@ -397,6 +408,13 @@ function update() {
 
   if (p.hurt > 0) p.hurt--;
   if (--p.blink < 0) p.blink = 120 + Math.random()*120;
+
+  // Active claw hitbox — a small reach in front of Pinny during the swing
+  let atkBox = null;
+  if (p.atk > 6) {
+    const reach = 18;
+    atkBox = { x: p.face > 0 ? p.x + p.w - 2 : p.x - reach + 2, y: p.y + 2, w: reach, h: p.h - 2 };
+  }
 
   // Enemies
   for (const c of enemies) {
@@ -410,6 +428,14 @@ function update() {
     if (hitWall || c.x < c.homeMin || c.x > c.homeMax) c.vx *= -1;
     c.onG = false; c.y += c.vy;
     for (const s of solids) { if (aabb(c, s)) { if (c.vy>0){c.y=s.y-c.h;c.onG=true;} c.vy=0; } }
+
+    // Claw hit — defeat crabs caught in the swipe (no need to jump on them)
+    if (atkBox && aabb(c, atkBox)) {
+      c.dead = true; greyLeft--; score += 150;
+      spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c']);
+      updateSaturation();
+      continue;
+    }
 
     // Player collision
     if (aabb(p, c)) {
@@ -657,6 +683,23 @@ function drawPinny(p) {
   ctx.beginPath(); ctx.arc(1, 13.6, 1.5, 0, Math.PI); ctx.fill();
   ctx.fillStyle = '#fff';                                      // teeth
   ctx.fillRect(-1.4, 11.4, 4.8, 1.3);
+
+  // claw swipe (thrusts forward during an attack; +x is "in front" after face flip)
+  if (p.atk > 0) {
+    const prog = (14 - p.atk) / 14;                            // 0 → 1 over the swing
+    const reach = Math.sin(Math.min(1, prog*1.25) * Math.PI) * 12;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;   // slash arc
+    ctx.beginPath(); ctx.arc(11, 9, 9 + reach*0.4, -0.9, 0.9); ctx.stroke();
+    ctx.strokeStyle = '#e85f22'; ctx.lineWidth = 3;                  // outstretched arm
+    ctx.beginPath(); ctx.moveTo(7, 9); ctx.lineTo(12 + reach, 9); ctx.stroke();
+    ctx.fillStyle = '#ff7a3c';                                       // big pincer
+    ctx.beginPath(); ctx.arc(14 + reach, 9, 5, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = '#e85f22'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(14 + reach, 6); ctx.lineTo(20 + reach, 4);
+    ctx.moveTo(14 + reach, 12); ctx.lineTo(20 + reach, 14);
+    ctx.stroke();
+  }
 
   ctx.restore();
   ctx.globalAlpha = 1;

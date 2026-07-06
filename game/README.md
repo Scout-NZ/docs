@@ -14,12 +14,14 @@ world becomes (watch the **COLOUR** meter at the top).
 
 - **◀ ▶** — walk left / right
 - **JUMP** — hop
-- **Land on a grey crab** from above to pop it and restore colour
-- Grab the **golden fruit** for points
+- **CLAW** — swipe your claw at crabs right in front of you (short cooldown)
+- **Land on a grey crab** from above to pop it — or claw it — to restore colour
+- Grab the **watermelon slices** 🍉 for points
 - Reach the **pink flag** to finish the level
 - You have 3 ❤️ — don't get bumped by a crab from the side, and don't fall!
 
-Keyboard also works on a computer: **arrow keys** to move, **space** to jump.
+Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
+**X** (or K / J / Shift) to claw.
 
 ## Play it on your phone
 
