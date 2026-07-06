@@ -325,7 +325,7 @@ const THEMES = [
 ];
 
 // --- Game state ---
-let level, solids, enemies, fruits, hearts, flag, player, cam, theme, boss;
+let level, solids, enemies, fruits, hearts, flag, player, cam, theme, boss, projectiles;
 let totalGrey, greyLeft, score, melons, lives, levelIndex, running, particles;
 let timeT, bannerT;
 let upg = { jump: 0, claw: 0, speed: 0 };   // upgrade levels bought in the shop
@@ -333,7 +333,7 @@ let upg = { jump: 0, claw: 0, speed: 0 };   // upgrade levels bought in the shop
 function buildLevel(idx) {
   const map = LEVELS[idx];
   theme = THEMES[idx] || THEMES[THEMES.length - 1];
-  solids = []; enemies = []; fruits = []; hearts = []; flag = null; boss = null; particles = [];
+  solids = []; enemies = []; fruits = []; hearts = []; flag = null; boss = null; particles = []; projectiles = [];
   let gi = 0; // crab index, used to cycle through this world's crab kinds
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
@@ -358,13 +358,44 @@ function makePlayer(x, y) {
   return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0, atk: 0, atkCd: 0 };
 }
 function makeCrab(x, y, kind) {
-  return { x: x+3, y: y+6, w: 18, h: 14, kind: kind || 'grey', vx: (Math.random()<.5?-1:1)*0.7,
-           dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3 };
+  kind = kind || 'grey';
+  return { x: x+3, y: y+6, w: 18, h: 14, kind, vx: (Math.random()<.5?-1:1)*0.7,
+           dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3,
+           hp: kind === 'crate' ? 2 : 1, hitFlash: 0,      // crate crabs are armoured
+           onG: false, dir: 1,
+           shootCd: 90 + Math.random()*140,                 // projectile timer (shooters)
+           lungeCd: 90 + Math.random()*120, windup: 0, charge: 0 }; // lunge timers (chargers)
 }
 function makeBoss(x, y) {
   // General Ashclaw — big spiky crab. Beaten by 6 stomps/claws.
   return { x: x-12, y: y-24, w: 42, h: 30, vx: 1.1, vy: 0, hp: 6, maxhp: 6,
-           hurt: 0, dead: false, wig: 0, name: 'GENERAL ASHCLAW' };
+           hurt: 0, dead: false, wig: 0, shootCd: 150, name: 'GENERAL ASHCLAW' };
+}
+
+// A crab attack projectile (pinch / pollen / spore).
+function fireProjectile(c, dir) {
+  const cx = c.x + c.w/2, cy = c.y + c.h/2;
+  if (c.kind === 'red')
+    projectiles.push({ x:cx+dir*8, y:cy,   vx:dir*2.4, vy:0,    g:0,    kind:'pinch',  r:4, life:150, bob:0 });
+  else if (c.kind === 'flower')
+    projectiles.push({ x:cx+dir*8, y:cy-2, vx:dir*1.4, vy:0,    g:0,    kind:'pollen', r:4, life:180, bob:Math.random()*6.28 });
+  else if (c.kind === 'mushroom')
+    projectiles.push({ x:cx+dir*6, y:cy-4, vx:dir*0.8, vy:-1.4, g:0.03, kind:'spore',  r:4, life:210, bob:Math.random()*6.28 });
+}
+
+// Hurt a crab (stomp or claw). dir = knockback direction, 0 = none.
+// Armoured crabs (crate) survive the first hit and flash instead.
+function damageCrab(c, dir) {
+  c.hp--;
+  if (c.hp <= 0) {
+    c.dead = true; greyLeft--; score += 150;
+    spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c']);
+    updateSaturation();
+  } else {
+    c.hitFlash = 22; score += 25; c.charge = 0; c.windup = 0;   // interrupt its attack
+    if (dir) { c.vx = dir > 0 ? 0.7 : -0.7; c.x += dir*3; }
+    spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#fff','#ffd23f']);
+  }
 }
 
 /* ---------------- Input ---------------- */
@@ -472,43 +503,78 @@ function update() {
     atkBox = { x: p.face > 0 ? p.x + p.w - 2 : p.x - reach + 2, y: p.y + 2, w: reach, h: p.h - 2 };
   }
 
-  // Enemies
+  // Enemies — each crab type fights back in its own way
   for (const c of enemies) {
     if (c.dead) continue;
     c.wig += 0.2;
-    c.vy = (c.vy || 0) + GRAV; if (c.vy > 12) c.vy = 12;
-    c.x += c.vx;
-    // patrol turn-around at edges / walls
+    if (c.hitFlash > 0) c.hitFlash--;
+    if (c.shootCd > 0) c.shootCd--;
+    if (c.lungeCd > 0) c.lungeCd--;
+    if (c.windup > 0) c.windup--;
+    if (c.charge > 0) c.charge--;
+
+    const dxp = (p.x + p.w/2) - (c.x + c.w/2);
+    const sameLevel = Math.abs((p.y + p.h) - (c.y + c.h)) < 40;
+
+    // --- attacks ---
+    if (c.kind === 'red' || c.kind === 'flower' || c.kind === 'mushroom') {
+      // shooters: lob a projectile at Pinny when he's near and roughly level
+      if (c.onG && c.shootCd <= 0 && Math.abs(dxp) < 155 && sameLevel) {
+        fireProjectile(c, dxp > 0 ? 1 : -1);
+        c.shootCd = 150 + Math.random()*110;
+      }
+    } else {
+      // grey & crate: telegraphed charge/lunge toward Pinny
+      if (c.onG && c.charge <= 0 && c.windup <= 0 && c.lungeCd <= 0 && Math.abs(dxp) < 120 && sameLevel) {
+        c.windup = 26; c.dir = dxp > 0 ? 1 : -1;                 // wind up (shake)
+      }
+      if (c.windup === 1) { c.charge = 30; c.lungeCd = 150; }    // then dash
+    }
+
+    // --- horizontal movement ---
+    let vx;
+    if (c.charge > 0) vx = c.dir * (c.kind === 'crate' ? 2.6 : 3.0);
+    else if (c.windup > 0) vx = 0;                               // freeze during wind-up
+    else vx = (c.vx > 0 ? 1 : -1) * 0.7;
+    c.x += vx;
     let hitWall = false;
-    for (const s of solids) { if (aabb(c, s)) { if (c.vx>0) c.x=s.x-c.w; else c.x=s.x+s.w; hitWall=true; } }
-    if (hitWall || c.x < c.homeMin || c.x > c.homeMax) c.vx *= -1;
+    for (const s of solids) { if (aabb(c, s)) { if (vx>0) c.x=s.x-c.w; else c.x=s.x+s.w; hitWall = true; } }
+    if (c.charge > 0) { if (hitWall) c.charge = 0; }
+    else if (hitWall || c.x < c.homeMin || c.x > c.homeMax) c.vx *= -1;
+
+    // --- gravity ---
+    c.vy = (c.vy || 0) + GRAV; if (c.vy > 12) c.vy = 12;
     c.onG = false; c.y += c.vy;
     for (const s of solids) { if (aabb(c, s)) { if (c.vy>0){c.y=s.y-c.h;c.onG=true;} c.vy=0; } }
 
-    // Claw hit — defeat crabs caught in the swipe (no need to jump on them)
-    if (atkBox && aabb(c, atkBox)) {
-      c.dead = true; greyLeft--; score += 150;
-      spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c']);
-      updateSaturation();
-      continue;
-    }
+    // Claw hit — swipe the crab (armoured crate takes 2)
+    if (atkBox && c.hitFlash <= 0 && aabb(c, atkBox)) { damageCrab(c, p.face); if (c.dead) continue; }
 
     // Player collision
-    if (aabb(p, c)) {
+    if (c.hitFlash <= 0 && aabb(p, c)) {
       const stomped = p.vy > 1.2 && (p.y + p.h) - c.y < 12;
-      if (stomped) {
-        c.dead = true; greyLeft--; p.vy = -6.5; // bounce
-        score += 150;
-        spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c']);
-        updateSaturation();
-      } else if (p.hurt <= 0) {
-        // Get bumped: lose a life, brief invulnerability & knockback
-        lives--; p.hurt = 90; p.vx = p.face * -4; p.vy = -5;
+      if (stomped) { p.vy = -6.5; damageCrab(c, 0); }            // bounce + hurt crab
+      else if (p.hurt <= 0) {
+        lives--; p.hurt = 90; p.vx = (p.x < c.x ? -1 : 1) * 4; p.vy = -5;
         spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
         if (lives <= 0) return endGame(false);
       }
     }
   }
+
+  // Enemy projectiles
+  for (const pr of projectiles) {
+    pr.bob += 0.2; pr.vy += pr.g; pr.x += pr.vx; pr.y += pr.vy; pr.life--;
+    for (const s of solids) { if (pr.x>s.x && pr.x<s.x+s.w && pr.y>s.y && pr.y<s.y+s.h) { pr.life = 0; break; } }
+    const box = { x: pr.x-pr.r, y: pr.y-pr.r, w: pr.r*2, h: pr.r*2 };
+    if (atkBox && pr.life > 0 && aabb(box, atkBox)) { pr.life = 0; spawnBurst(pr.x, pr.y, ['#fff','#ffd23f']); }  // clawed away
+    if (pr.life > 0 && p.hurt <= 0 && aabb(p, box)) {
+      pr.life = 0; lives--; p.hurt = 90; p.vx = (pr.vx>0?1:-1)*3.5; p.vy = -4.5;
+      spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
+      if (lives <= 0) return endGame(false);
+    }
+  }
+  projectiles = projectiles.filter(pr => pr.life > 0 && pr.y < level.h + 60);
 
   // Boss fight
   if (boss && !boss.dead) {
@@ -524,6 +590,15 @@ function update() {
     if (hitw) bo.vx *= -1;
     bo.vy += GRAV; if (bo.vy > 12) bo.vy = 12; bo.y += bo.vy;
     for (const s of solids) { if (aabb(bo, s)) { if (bo.vy > 0) bo.y = s.y - bo.h; bo.vy = 0; } }
+
+    // Boss attack: fire a fan of spores at Pinny (faster as he's worn down)
+    if (bo.shootCd > 0) bo.shootCd--;
+    if (bo.shootCd <= 0) {
+      const dir = (p.x + p.w/2) < (bo.x + bo.w/2) ? -1 : 1;
+      const cx = bo.x + bo.w/2, cy = bo.y + 8;
+      for (const dv of [-1.2, -0.4, 0.4]) projectiles.push({ x:cx+dir*10, y:cy, vx:dir*1.6, vy:dv, g:0.04, kind:'spore', r:5, life:200, bob:Math.random()*6.28 });
+      bo.shootCd = 150 - (bo.maxhp - bo.hp) * 12;   // 150 → ~90 frames as HP drops
+    }
 
     if (atkBox && bo.hurt <= 0 && aabb(bo, atkBox)) hitBoss(p.face);   // claw hit
     if (!boss.dead && aabb(p, bo)) {
@@ -645,6 +720,7 @@ function draw() {
   for (const f of fruits) if (!f.got) drawFruit(f);
   for (const h of hearts) if (!h.got) drawHeartPickup(h);
   drawPinny(player);
+  for (const pr of projectiles) drawProjectile(pr);
   for (const pt of particles) {
     ctx.globalAlpha = clamp01(pt.life/30);
     ctx.fillStyle = pt.col;
@@ -708,6 +784,23 @@ function drawFruit(f) {
   ctx.fillRect(-3,-3.4,1,1.6); ctx.fillRect(2,-3.4,1,1.6); ctx.fillRect(-0.5,-2,1,1.6);
   ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(-3.5,-4.6,2,1);                                    // shine
   ctx.restore();
+}
+
+// Crab attack projectiles.
+function drawProjectile(pr) {
+  const wob = Math.sin(pr.bob) * 1.2;
+  if (pr.kind === 'pinch') {
+    ctx.fillStyle = '#ff7a3c'; ctx.beginPath(); ctx.arc(pr.x, pr.y, 4, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(pr.x, pr.y, 1.8, 0, 6.28); ctx.fill();
+  } else if (pr.kind === 'pollen') {
+    ctx.fillStyle = 'rgba(255,143,206,0.4)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 6, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#ff8fce'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 4, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 1.6, 0, 6.28); ctx.fill();
+  } else { // spore
+    ctx.fillStyle = 'rgba(176,107,255,0.4)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, pr.r+3, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#b06bff'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, pr.r, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#e6ccff'; ctx.beginPath(); ctx.arc(pr.x-1.2, pr.y-1.2+wob, 1.3, 0, 6.28); ctx.fill();
+  }
 }
 
 // Heart pickup — a floating extra life.
@@ -848,8 +941,9 @@ function drawCrab(c) {
   const kind = c.kind || 'grey';
   const P = CRAB_PALETTE[kind] || CRAB_PALETTE.grey;
   const look = (c.vx > 0 ? 0.6 : -0.6);
+  const jit = (c.windup > 0) ? Math.sin(c.wig*4) * 1.6 : 0;   // shake while winding up to charge
   ctx.save();
-  ctx.translate(c.x + c.w/2, c.y);
+  ctx.translate(c.x + c.w/2 + jit, c.y);
 
   // faint "drain" aura
   ctx.fillStyle = 'rgba(120,120,120,0.15)';
@@ -904,6 +998,12 @@ function drawCrab(c) {
   // grumpy mouth
   ctx.strokeStyle = P.line; ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.arc(0,10,2.2,Math.PI+0.1,-0.1); ctx.stroke();
+
+  // white flash when hit but not yet defeated (armoured crate)
+  if (c.hitFlash > 0 && Math.floor(c.hitFlash/3) % 2 === 0) {
+    ctx.globalAlpha = 0.55; ctx.fillStyle = '#fff';
+    roundRect(-9, -1, 18, 15, 6); ctx.fill(); ctx.globalAlpha = 1;
+  }
 
   ctx.restore();
 }

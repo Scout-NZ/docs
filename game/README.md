@@ -55,8 +55,14 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
   the flag and the HUD — so they're always easy to see even in a grey world.
 - **Collect watermelon slices** (🍉 counter) and earn **stars** (★) for defeating
   crabs. HUD shows a Pinny portrait, hearts, the colour meter, and a level timer.
-- **Hybrid crab enemies:** grey, flower, mushroom, wooden crate, and red/hermit
-  crabs, themed per world.
+- **Hybrid crab enemies that fight back**, each with its own attack:
+  - **Grey** and **crate** crabs *charge* — they shake to wind up, then dash at
+    Pinny (crate crabs are armoured and take two hits).
+  - **Red** crabs fire a fast pinch shot.
+  - **Flower** crabs puff drifting pollen.
+  - **Mushroom** crabs float spores up into the air.
+  - You can **swipe projectiles out of the air with the claw**, or just jump/dodge.
+- **Boss** General Ashclaw also fires a fan of spores as you wear him down.
 - Easy to extend — levels live in the `LEVELS` array near the top of the
   `<script>`, drawn as simple text maps:
   `X` = ground, `P` = Pinny's start, `G` = grey crab, `o` = fruit, `F` = flag.
