@@ -17,6 +17,7 @@ world becomes (watch the **COLOUR** meter at the top).
 - **CLAW** — swipe your claw at crabs right in front of you (short cooldown)
 - **Land on a grey crab** from above to pop it — or claw it — to restore colour
 - Grab the **watermelon slices** 🍉 for points
+- Grab a floating **heart** ❤️ for an extra life (up to 5)
 - Reach the **pink flag** to finish the level
 - You have 3 ❤️ — don't get bumped by a crab from the side, and don't fall!
 

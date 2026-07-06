@@ -135,6 +135,7 @@ const TILE = 24;               // tile size in world pixels
 const GRAV = 0.55;
 const MOVE = 0.7, MAXVX = 3.2, FRICT = 0.82;
 const JUMP_V = 9.6;
+const MAX_LIVES = 5;           // heart pickups can top up to this many lives
 
 worldCanvas.width = fgCanvas.width = VW; worldCanvas.height = fgCanvas.height = VH;
 
@@ -154,7 +155,8 @@ resize();
    Legend:
      X = solid ground/block   . = empty
      P = player start         G = grey crab enemy
-     o = fruit (score)        F = finish flag
+     o = watermelon           H = heart (extra life)
+     F = finish flag          B = boss
    ------------------------------------------------------------------ */
 const LEVELS = [
   // Level 1: Crabby Cove
@@ -170,7 +172,7 @@ const LEVELS = [
     "..X....o..o...XXXXXXX....XXXX..........X......",
     "..X..XXXXXX..........G..............G..X......",
     "XXXX........XX..............XXXXXXXXXXXX......",
-    "X...................G.........................",
+    "X.........H.........G.........................",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -188,7 +190,7 @@ const LEVELS = [
     ".X..........XXX...............XXXX.....X...........",
     ".X..o..............G.....................X.........",
     ".XXXX...XXXX....XXXXXXX...G......XXXXXXXXXX........",
-    ".X......................XXXX.......................",
+    ".X........H.............XXXX.......................",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -205,7 +207,7 @@ const LEVELS = [
     ".................XXXX..........................",
     ".......XXXX................XXXX.............o..",
     "...XXXX........XXXX....XXXX........XXXXX.......",
-    "..P...G.....G......G......G....G.......F.......",
+    "..P...G..H..G......G......G....G.......F.......",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -222,7 +224,7 @@ const LEVELS = [
     ".................XXXX.........................",
     "..........XXXX................................",
     "...XXXX........XXXX....XXXX.......XXXX........",
-    "..P....G......G.......G......G.....G....F.....",
+    "..P....G..H...G.......G......G.....G....F.....",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -239,7 +241,7 @@ const LEVELS = [
     ".......XXXX.......XXXX.......XXXX.............",
     "..............................................",
     "....XXXX......XXXX......XXXX......XXXX........",
-    ".P..G...G....G....G....G....G....G.....F......",
+    ".P..G.H.G....G....G....G....G....G.....F......",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -256,7 +258,7 @@ const LEVELS = [
     "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
     "..............................................",
     "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
-    ".P..G..G..G..G..G..G..G..G..G..G..G....F......",
+    ".P..G..G..G..G..G..G..G..G..G..G..G.H..F......",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -273,7 +275,7 @@ const LEVELS = [
     "...................................",
     ".........o............o............",
     ".......XXXX..........XXXX..........",
-    "..P.............B..................",
+    "..P.....H.......B..................",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ]
@@ -296,14 +298,14 @@ const THEMES = [
 ];
 
 // --- Game state ---
-let level, solids, enemies, fruits, flag, player, cam, theme, boss;
+let level, solids, enemies, fruits, hearts, flag, player, cam, theme, boss;
 let totalGrey, greyLeft, score, melons, lives, levelIndex, running, particles;
 let timeT, bannerT;
 
 function buildLevel(idx) {
   const map = LEVELS[idx];
   theme = THEMES[idx] || THEMES[THEMES.length - 1];
-  solids = []; enemies = []; fruits = []; flag = null; boss = null; particles = [];
+  solids = []; enemies = []; fruits = []; hearts = []; flag = null; boss = null; particles = [];
   let gi = 0; // crab index, used to cycle through this world's crab kinds
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
@@ -313,6 +315,7 @@ function buildLevel(idx) {
       else if (ch === 'P') player = makePlayer(x, y);
       else if (ch === 'G') { enemies.push(makeCrab(x, y, theme.kinds[gi % theme.kinds.length])); gi++; }
       else if (ch === 'o') fruits.push({ x: x + TILE/2, y: y + TILE/2, r: 7, got: false, bob: Math.random()*6.28 });
+      else if (ch === 'H') hearts.push({ x: x + TILE/2, y: y + TILE/2, got: false, bob: Math.random()*6.28 });
       else if (ch === 'F') flag = { x: x + 4, y: y - TILE, w: 8, h: TILE*2 };
       else if (ch === 'B') boss = makeBoss(x, y);
     }
@@ -516,6 +519,17 @@ function update() {
     }
   }
 
+  // Heart pickups — grant an extra life (up to MAX_LIVES)
+  for (const h of hearts) {
+    if (h.got) continue;
+    h.bob += 0.1;
+    if (aabb(p, {x:h.x-9, y:h.y-9, w:18, h:18})) {
+      h.got = true; score += 50;
+      if (lives < MAX_LIVES) lives++;
+      spawnBurst(h.x, h.y, ['#ff3b5c','#ff8fa3','#fff']);
+    }
+  }
+
   // Particles
   for (const pt of particles) { pt.vy += 0.18; pt.x += pt.vx; pt.y += pt.vy; pt.life--; }
   particles = particles.filter(pt => pt.life > 0);
@@ -600,6 +614,7 @@ function draw() {
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
   if (flag) drawFlag(flag);
   for (const f of fruits) if (!f.got) drawFruit(f);
+  for (const h of hearts) if (!h.got) drawHeartPickup(h);
   drawPinny(player);
   for (const pt of particles) {
     ctx.globalAlpha = clamp01(pt.life/30);
@@ -663,6 +678,19 @@ function drawFruit(f) {
   ctx.fillStyle = '#3a2020';                                                                              // seeds
   ctx.fillRect(-3,-3.4,1,1.6); ctx.fillRect(2,-3.4,1,1.6); ctx.fillRect(-0.5,-2,1,1.6);
   ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(-3.5,-4.6,2,1);                                    // shine
+  ctx.restore();
+}
+
+// Heart pickup — a floating extra life.
+function drawHeartPickup(h) {
+  const y = h.y + Math.sin(h.bob) * 3;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,80,110,0.22)';                 // soft glow
+  ctx.beginPath(); ctx.arc(h.x, y + 2, 10, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#c9203f'; heart(h.x, y - 4.5, 6.6);      // dark base for outline
+  ctx.fillStyle = '#ff3b5c'; heart(h.x, y - 4, 6);          // heart body
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';                  // shine
+  ctx.beginPath(); ctx.arc(h.x - 2, y - 1, 1.6, 0, 6.28); ctx.fill();
   ctx.restore();
 }
 
