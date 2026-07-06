@@ -39,6 +39,12 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
 
 - Everything is drawn with the HTML5 canvas — there are **no image or sound
   files**, so the whole game is just this one `index.html`.
+- The art style is a 16-bit-inspired pixel-platformer look with layered
+  atmosphere: parallax silhouette skylines unique to each world (waterfalls,
+  turning gears, crate mesas, giant glowing mushrooms, ruined towers), drifting
+  ambient motes (leaves / bubbles / spores / ash), a starry night sky in the
+  darker worlds, neighbour-aware textured tiles with vines and wildflowers,
+  outlined sprites with squash-and-stretch, and a soft vignette for depth.
 - It's a **prototype**: **6 themed worlds plus a boss stage** — Emerald Falls,
   Coral Gear Coast, Palm Cove, Box Mountains, Mushroom Marsh, Monochrome
   Wasteland, and finally **Ashclaw's Keep**. Each world has its own sky/palette,
