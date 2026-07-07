@@ -23,8 +23,9 @@
     image-rendering: pixelated; image-rendering: crisp-edges;
     touch-action: none;
   }
-  /* World layer desaturates to show the stolen colour; foreground stays full colour. */
-  #world { z-index: 1; transition: filter 0.5s ease; }
+  /* World layer desaturates to show the stolen colour; foreground stays full colour.
+     The filter is animated per-frame in JS (Colour Tide), so no CSS transition. */
+  #world { z-index: 1; }
   #game  { z-index: 2; }
 
   /* ---- On-screen touch controls ---- */
@@ -234,7 +235,7 @@ const LEVELS = [
     ".................XXXX..........................",
     ".......XXXX................XXXX.............o..",
     "...XXXX........XXXX....XXXX........XXXXX.......",
-    "..P...G..H..G......G......G....G.......F.......",
+    "..P...G..H..G..N...G......G....G.......F.......",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -268,7 +269,7 @@ const LEVELS = [
     ".......XXXX.......XXXX.......XXXX.............",
     "..............................................",
     "....XXXX......XXXX......XXXX......XXXX........",
-    ".P..G.H.G....G....G....G....G....G.....F......",
+    ".P..G.H.G..N.G....G....G....G....G.....F......",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -285,7 +286,7 @@ const LEVELS = [
     "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
     "..............................................",
     "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
-    ".P..G..G..G..G..G..G..G..G..G..G..G.H..F......",
+    ".P..G..G..G..G..G..N..G..G..G..G..G.H..F......",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -311,29 +312,53 @@ const LEVELS = [
 /* ------------------------------------------------------------------
    WORLD THEMES — one per level, matching the concept art.
    Each world begins fully GREYSCALE and fills back to colour as its
-   grey crabs are defeated (see updateSaturation). blockStyle picks the
+   grey crabs are defeated (see the Colour Tide system). blockStyle picks the
    platform look; kinds are the hybrid crab types that live there.
    ------------------------------------------------------------------ */
 const THEMES = [
   { name:'EMERALD FALLS',       stage:'1-1', sky:['#4fa3e8','#9fdcf0','#d8f3b8'], hills:['#3f9468','#2c7050'], far:'#265c49', cloud:'#ffffff', sun:'#fff3ae', sunY:40,  deco:'jungle', amb:{col:'#b8f0a8',dx:0.05,dy:0.22},            moss:'#4a9e58', block:'grass', kinds:['grey','flower','red'] },
-  { name:'CORAL GEAR COAST',    stage:'1-4', sky:['#2f86c9','#6fc0e8','#c8f0f4'], hills:['#3f93a8','#2f7185'], far:'#1f5568', cloud:'#eafaff', sun:'#fff8d0', sunY:36,  deco:'gear',   amb:{col:'#d8f6ff',dx:0,dy:-0.35},               moss:'#3fae9c', block:'stone', kinds:['grey','crate','red'] },
-  { name:'PALM COVE',           stage:'1-2', sky:['#4fb2e8','#9fdcf0','#ffe2ad'], hills:['#4aa878','#357c58'], far:'#2d6b52', cloud:'#fff4de', sun:'#ffedb0', sunY:46,  deco:'palm',   amb:{col:'#ffe6a8',dx:0.15,dy:0.12},             moss:'#4a9e58', block:'grass', kinds:['grey','flower','red'] },
-  { name:'BOX MOUNTAINS',       stage:'1-5', sky:['#3f9bd6','#8fcbe8','#c9d98f'], hills:['#7f9350','#5f7340'], far:'#4d5c31', cloud:'#f4ecd4', sun:'#fff3ae', sunY:38,  deco:'crate',  amb:{col:'#ead9a8',dx:0.1,dy:0.08},              moss:'#6f8b3a', block:'crate', kinds:['grey','crate'] },
-  { name:'MUSHROOM MARSH',      stage:'1-6', sky:['#1d1436','#45276b','#c9694a'], hills:['#38234f','#271a3a'], far:'#1e1533', cloud:'#6a4a86', sun:'#ffb46a', sunY:150, stars:true, deco:'mush', amb:{col:'#d0a4ff',dx:0.03,dy:-0.18,glow:true}, moss:'#8a4a9e', block:'stone', kinds:['grey','mushroom','flower'] },
-  { name:'MONOCHROME WASTELAND',stage:'1-9', sky:['#2e3238','#4d545e','#78808a'], hills:['#454b54','#33383f'], far:'#2a2e35', cloud:'#9aa0a8', sun:'#e8ecf2', sunY:42,  stars:true, deco:'ruin', amb:{col:'#b9bec6',dx:0.06,dy:0.3},             moss:'#5a6a52', block:'stone', kinds:['grey','crate','mushroom'] },
+  { name:'CORAL GEAR COAST',    stage:'1-4', sky:['#2f86c9','#6fc0e8','#c8f0f4'], hills:['#3f93a8','#2f7185'], far:'#1f5568', cloud:'#eafaff', sun:'#fff8d0', sunY:36,  deco:'gear',   amb:{col:'#d8f6ff',dx:0,dy:-0.35},               moss:'#3fae9c', block:'stone', kinds:['grey','crate','sucker'] },
+  { name:'PALM COVE',           stage:'1-2', sky:['#4fb2e8','#9fdcf0','#ffe2ad'], hills:['#4aa878','#357c58'], far:'#2d6b52', cloud:'#fff4de', sun:'#ffedb0', sunY:46,  deco:'palm',   amb:{col:'#ffe6a8',dx:0.15,dy:0.12},             moss:'#4a9e58', block:'grass', kinds:['grey','flower','sucker'] },
+  { name:'BOX MOUNTAINS',       stage:'1-5', sky:['#3f9bd6','#8fcbe8','#c9d98f'], hills:['#7f9350','#5f7340'], far:'#4d5c31', cloud:'#f4ecd4', sun:'#fff3ae', sunY:38,  deco:'crate',  amb:{col:'#ead9a8',dx:0.1,dy:0.08},              moss:'#6f8b3a', block:'crate', kinds:['grey','crate','sucker'] },
+  { name:'MUSHROOM MARSH',      stage:'1-6', sky:['#1d1436','#45276b','#c9694a'], hills:['#38234f','#271a3a'], far:'#1e1533', cloud:'#6a4a86', sun:'#ffb46a', sunY:150, stars:true, deco:'mush', amb:{col:'#d0a4ff',dx:0.03,dy:-0.18,glow:true}, moss:'#8a4a9e', block:'stone', kinds:['grey','mushroom','sucker'] },
+  { name:'MONOCHROME WASTELAND',stage:'1-9', sky:['#2e3238','#4d545e','#78808a'], hills:['#454b54','#33383f'], far:'#2a2e35', cloud:'#9aa0a8', sun:'#e8ecf2', sunY:42,  stars:true, deco:'ruin', amb:{col:'#b9bec6',dx:0.06,dy:0.3},             moss:'#5a6a52', block:'stone', kinds:['grey','sucker','crate','mushroom'] },
   { name:"ASHCLAW'S KEEP",      stage:'BOSS',sky:['#160f1e','#31213e','#5a3546'], hills:['#241a30','#180f20'], far:'#130c1b', cloud:'#4a3550', sun:'#ff9c5a', sunY:120, stars:true, deco:'keep', amb:{col:'#ff9c5a',dx:0.02,dy:-0.28,glow:true}, moss:'#6a3a4a', block:'stone', kinds:['grey'] },
 ];
 
 // --- Game state ---
 let level, solids, enemies, fruits, hearts, flag, player, cam, theme, boss, projectiles;
 let totalGrey, greyLeft, score, melons, lives, levelIndex, running, particles;
-let timeT, bannerT, ambient, solidSet;
-let upg = { jump: 0, claw: 0, speed: 0 };   // upgrade levels bought in the shop
+let timeT, bannerT, ambient, solidSet, nests;
+let upg = { jump: 0, claw: 0, speed: 0, colour: 0 };   // upgrade levels bought in the shop
+
+/* ------------------------------------------------------------------
+   COLOUR TIDE — the core system. A continuous 0..1 value per level:
+     rises  : stomps/claws on crabs, watermelons, destroying grey nests
+     drains : while Paint-Sucker crabs or Grey Nests are alive; on hits
+   Four states: GREY (<0.25) · FADED (<0.55) · COLOURFUL (≥0.55) ·
+   RAINBOW RUSH (timed bonus when the level is fully stabilised).
+   The world visibly wakes up as the tide rises; the pineapple crab is
+   the source of colour and never greys out.
+   ------------------------------------------------------------------ */
+let tide = 0, tideVis = 0, graceT = 0, killGain = 0.1, stabilised = false;
+let rush = 0, rushUsed = false;
+
+function gainTide(v) {
+  tide = clampv(tide + v, 0, 1);
+  if (v > 0) graceT = 90;              // drain pauses briefly after every gain
+}
+function tState() {                     // 0 grey · 1 faded · 2 colourful · 3 rush
+  if (rush > 0) return 3;
+  return tide < 0.25 ? 0 : tide < 0.55 ? 1 : 2;
+}
+const TIDE_NAMES = ['GREY', 'FADED', 'COLOURFUL', 'RAINBOW RUSH!'];
+const TIDE_COLS  = ['#b9bec6', '#ffd97a', '#7de6a0', '#fff'];
+function addScore(n) { score += rush > 0 ? n * 2 : n; }   // rush doubles points
 
 function buildLevel(idx) {
   const map = LEVELS[idx];
   theme = THEMES[idx] || THEMES[THEMES.length - 1];
-  solids = []; enemies = []; fruits = []; hearts = []; flag = null; boss = null; particles = []; projectiles = [];
+  solids = []; enemies = []; fruits = []; hearts = []; flag = null; boss = null; particles = []; projectiles = []; nests = [];
   let gi = 0; // crab index, used to cycle through this world's crab kinds
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
@@ -346,6 +371,8 @@ function buildLevel(idx) {
       else if (ch === 'H') hearts.push({ x: x + TILE/2, y: y + TILE/2, got: false, bob: Math.random()*6.28 });
       else if (ch === 'F') flag = { x: x + 4, y: y - TILE, w: 8, h: TILE*2 };
       else if (ch === 'B') boss = makeBoss(x, y);
+      else if (ch === 'N') nests.push({ x: x+2, y: y+8, w: 20, h: 16, hp: 3, maxhp: 3,
+                                        flash: 0, pulse: Math.random()*6.28, spawnT: 300, dead: false });
     }
   }
   level = { w: map[0].length * TILE, h: map.length * TILE };
@@ -356,6 +383,13 @@ function buildLevel(idx) {
   totalGrey = enemies.length; greyLeft = enemies.length;
   cam = { x: 0, y: 0 };
   timeT = 0; bannerT = 120;   // per-level timer + level-name banner
+
+  // Colour Tide setup: worlds start drained; the Colour Boost upgrade gives a
+  // brighter start. Each defeated crab restores an equal share of the tide.
+  tide = boss ? 0 : clampv(0.04 + upg.colour * 0.15, 0, 0.5);
+  tideVis = tide; graceT = 0; stabilised = false; rush = 0; rushUsed = false;
+  killGain = 0.9 / Math.max(1, totalGrey + nests.length * 2);
+  fruits.forEach((f, i) => { f.hidden = (i % 3 === 2); });   // some fruit only appears at COLOURFUL
 }
 
 function makePlayer(x, y) {
@@ -393,13 +427,26 @@ function fireProjectile(c, dir) {
 function damageCrab(c, dir) {
   c.hp--;
   if (c.hp <= 0) {
-    c.dead = true; greyLeft--; score += 150;
+    c.dead = true; greyLeft--; addScore(150);
+    gainTide(killGain * (c.kind === 'sucker' ? 1.6 : 1));   // popping a drainer restores extra
     spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c']);
-    updateSaturation();
   } else {
-    c.hitFlash = 22; score += 25; c.charge = 0; c.windup = 0;   // interrupt its attack
+    c.hitFlash = 22; addScore(25); c.charge = 0; c.windup = 0;   // interrupt its attack
     if (dir) { c.vx = dir > 0 ? 0.7 : -0.7; c.x += dir*3; }
     spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#fff','#ffd23f']);
+  }
+}
+
+// Grey Nests: spiky drain-mounds. Three hits to crack open; each destroyed
+// nest gives a big tide burst. While alive they drain colour and hatch crabs.
+function damageNest(n) {
+  if (n.flash > 0) return;
+  n.hp--; n.flash = 20;
+  if (n.hp <= 0) {
+    n.dead = true; addScore(250); gainTide(0.12);
+    spawnBurst(n.x + n.w/2, n.y + n.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c','#fff'], 26);
+  } else {
+    spawnBurst(n.x + n.w/2, n.y + 2, ['#cfcfcf','#9a9a9a']);
   }
 }
 
@@ -476,18 +523,18 @@ function update() {
   if (keys.left)  { p.vx -= MOVE; p.face = -1; }
   if (keys.right) { p.vx += MOVE; p.face = 1; }
   if (!keys.left && !keys.right) p.vx *= FRICT;
-  const maxvx = MAXVX + upg.speed * 0.7;               // Speed Boots upgrade
+  const maxvx = MAXVX + upg.speed * 0.7 + (rush > 0 ? 0.6 : 0);   // Speed Boots + Rainbow Rush
   p.vx = Math.max(-maxvx, Math.min(maxvx, p.vx));
   if (Math.abs(p.vx) > 0.3) p.walk += 0.25;
 
   // Jump (with tiny queue so taps feel responsive)
-  if ((keys.jump || keys.jumpQueued) && p.onGround) { p.vy = -(JUMP_V + upg.jump * 1.2); p.onGround = false; }  // Jump Boost upgrade
+  if ((keys.jump || keys.jumpQueued) && p.onGround) { p.vy = -(JUMP_V + upg.jump * 1.2 + (rush > 0 ? 1.0 : 0)); p.onGround = false; }  // Jump Boost + Rush
   keys.jumpQueued = false;
 
   // Claw attack — a quick swipe in front of Pinny, with a short cooldown
   if (p.atkCd > 0) p.atkCd--;
   if (p.atk > 0) p.atk--;
-  if ((keys.attack || keys.attackQueued) && p.atk <= 0 && p.atkCd <= 0) { p.atk = 14; p.atkCd = 26 - upg.claw * 5; }  // Claw Power: faster
+  if ((keys.attack || keys.attackQueued) && p.atk <= 0 && p.atkCd <= 0) { p.atk = 14; p.atkCd = 26 - upg.claw * 5 - (rush > 0 ? 4 : 0); }  // Claw Power + Rush
   keys.attackQueued = false;
 
   p.vy += GRAV;
@@ -508,7 +555,8 @@ function update() {
   // Active claw hitbox — a small reach in front of Pinny during the swing
   let atkBox = null;
   if (p.atk > 6) {
-    const reach = 18 + upg.claw * 8;                   // Claw Power: longer reach
+    // Claw Power upgrade + colour empowers the claw (weak in grey, strongest in rush)
+    const reach = 18 + upg.claw * 8 + (tState() >= 2 ? 3 : 0) + (rush > 0 ? 5 : 0);
     atkBox = { x: p.face > 0 ? p.x + p.w - 2 : p.x - reach + 2, y: p.y + 2, w: reach, h: p.h - 2 };
   }
 
@@ -532,19 +580,21 @@ function update() {
         fireProjectile(c, dxp > 0 ? 1 : -1);
         c.shootCd = 150 + Math.random()*110;
       }
-    } else {
+    } else if (c.kind !== 'sucker') {
       // grey & crate: telegraphed charge/lunge toward Pinny
       if (c.onG && c.charge <= 0 && c.windup <= 0 && c.lungeCd <= 0 && Math.abs(dxp) < 120 && sameLevel) {
         c.windup = 26; c.dir = dxp > 0 ? 1 : -1;                 // wind up (shake)
       }
       if (c.windup === 1) { c.charge = 30; c.lungeCd = 150; }    // then dash
     }
+    // (Paint-Suckers don't attack — their threat is the constant colour drain.)
 
-    // --- horizontal movement ---
+    // --- horizontal movement (a colourful world calms the crabs slightly) ---
+    const calm = tState() >= 2 ? 0.9 : 1;
     let vx;
-    if (c.charge > 0) vx = c.dir * (c.kind === 'crate' ? 2.6 : 3.0);
+    if (c.charge > 0) vx = c.dir * (c.kind === 'crate' ? 2.6 : 3.0) * calm;
     else if (c.windup > 0) vx = 0;                               // freeze during wind-up
-    else vx = (c.vx > 0 ? 1 : -1) * 0.7;
+    else vx = (c.vx > 0 ? 1 : -1) * (c.kind === 'sucker' ? 0.4 : 0.7) * calm;
     c.x += vx;
     let hitWall = false;
     for (const s of solids) { if (aabb(c, s)) { if (vx>0) c.x=s.x-c.w; else c.x=s.x+s.w; hitWall = true; } }
@@ -565,6 +615,7 @@ function update() {
       if (stomped) { p.vy = -6.5; damageCrab(c, 0); }            // bounce + hurt crab
       else if (p.hurt <= 0) {
         lives--; p.hurt = 90; p.vx = (p.x < c.x ? -1 : 1) * 4; p.vy = -5;
+        gainTide(-0.04);                                   // getting hit lets grey creep back
         spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
         if (lives <= 0) return endGame(false);
       }
@@ -579,11 +630,68 @@ function update() {
     if (atkBox && pr.life > 0 && aabb(box, atkBox)) { pr.life = 0; spawnBurst(pr.x, pr.y, ['#fff','#ffd23f']); }  // clawed away
     if (pr.life > 0 && p.hurt <= 0 && aabb(p, box)) {
       pr.life = 0; lives--; p.hurt = 90; p.vx = (pr.vx>0?1:-1)*3.5; p.vy = -4.5;
+      gainTide(-0.04);
       spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
       if (lives <= 0) return endGame(false);
     }
   }
   projectiles = projectiles.filter(pr => pr.life > 0 && pr.y < level.h + 60);
+
+  // ---- Grey Nests: take hits, hatch crabs, drain colour while alive ----
+  for (const n of nests) {
+    if (n.dead) continue;
+    n.pulse += 0.06;
+    if (n.flash > 0) n.flash--;
+    if (atkBox && aabb(n, atkBox)) damageNest(n);                 // claw the nest
+    if (aabb(p, n) && p.vy > 1.2 && (p.y + p.h) - n.y < 12) {     // or stomp it
+      p.vy = -6.5; damageNest(n);
+    }
+    if (--n.spawnT <= 0) {                                        // hatch a grey crab
+      n.spawnT = 480;
+      if (!n.hatch || n.hatch.dead) {
+        n.hatch = makeCrab(n.x - 2, n.y - 10, 'grey');
+        enemies.push(n.hatch);
+        spawnBurst(n.x + n.w/2, n.y, ['#bbb','#888']);
+      }
+    }
+  }
+
+  // ---- Colour Tide: drain pressure vs stabilisation ----
+  if (!boss) {
+    const suckers = enemies.filter(c => !c.dead && c.kind === 'sucker').length;
+    const liveNests = nests.filter(n => !n.dead).length;
+    if (!stabilised) {
+      if (graceT > 0) graceT--;
+      else {
+        const drainMul = 1 - upg.colour * 0.3;                    // Colour Boost slows the drain
+        const drain = (suckers * 0.00045 + liveNests * 0.0003) * drainMul;
+        if (drain > 0) tide = Math.max(0.05, tide - drain);       // never below the floor
+      }
+      // all crabs and nests cleared -> the colour stabilises, tide floods in
+      if (liveNests === 0 && enemies.every(c => c.dead)) {
+        stabilised = true;
+        if (!rushUsed) { rushUsed = true; rush = 600; }           // RAINBOW RUSH!
+      }
+    }
+    if (stabilised) tide = Math.min(1, tide + 0.01);
+  }
+
+  // ---- Rainbow Rush: confetti, sparkle trail, double points ----
+  if (rush > 0) {
+    rush--;
+    if (rush % 9 === 0)
+      spawnBurst(p.x + p.w/2 + (Math.random()-0.5)*90, p.y - 20 - Math.random()*40,
+                 ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#b06bff'], 4);
+    if (rush % 3 === 0)
+      particles.push({ x: p.x + p.w/2 - p.face*8, y: p.y + p.h - 2,
+                       vx: -p.face*0.5, vy: -0.3, life: 26,
+                       col: ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#b06bff'][(Math.random()*5)|0], r: 2.5 });
+  }
+
+  // Hidden fruit materialises once the world turns COLOURFUL
+  if (tState() >= 2) for (const f of fruits) {
+    if (f.hidden && !f.got) { f.hidden = false; spawnBurst(f.x, f.y, ['#fff','#ffd23f','#ff8fa3'], 8); }
+  }
 
   // Boss fight
   if (boss && !boss.dead) {
@@ -622,12 +730,12 @@ function update() {
     if (!running) return;   // boss defeat may have ended the game
   }
 
-  // Fruit pickups
+  // Fruit pickups (hidden fruit is intangible until the world is COLOURFUL)
   for (const f of fruits) {
-    if (f.got) continue;
+    if (f.got || f.hidden) continue;
     f.bob += 0.1;
     if (aabb(p, {x:f.x-f.r, y:f.y-f.r, w:f.r*2, h:f.r*2})) {
-      f.got = true; melons++; score += 25;
+      f.got = true; melons++; addScore(25); gainTide(0.02);
       spawnBurst(f.x, f.y, ['#ff5a5f','#2f9e44','#ff8fa3','#fff']);
     }
   }
@@ -637,7 +745,7 @@ function update() {
     if (h.got) continue;
     h.bob += 0.1;
     if (aabb(p, {x:h.x-9, y:h.y-9, w:18, h:18})) {
-      h.got = true; score += 50;
+      h.got = true; addScore(50);
       if (lives < MAX_LIVES) lives++;
       spawnBurst(h.x, h.y, ['#ff3b5c','#ff8fa3','#fff']);
     }
@@ -675,32 +783,38 @@ function respawn() {
 
 // Land a hit on the boss (stomp or claw). dir = knockback direction (0 = none).
 function hitBoss(dir) {
-  boss.hp--; boss.hurt = 40; score += 300;
+  boss.hp--; boss.hurt = 40; addScore(300);
+  tide = boss.hp <= 0 ? 1 : (boss.maxhp - boss.hp) / boss.maxhp;   // boss stage: tide tracks his HP
   if (dir) boss.vx = dir > 0 ? Math.abs(boss.vx) : -Math.abs(boss.vx);
   spawnBurst(boss.x + boss.w/2, boss.y + boss.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c'], 22);
-  updateSaturation();
   if (boss.hp <= 0) {
     boss.dead = true;
     spawnBurst(boss.x + boss.w/2, boss.y + boss.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c','#fff'], 44);
-    updateSaturation();
     finishLevel();   // boss is the final stage → triggers the win screen
   }
 }
 
-// Global colour saturation reflects how much colour has been rescued
-// (or, in the boss stage, how worn down the boss is).
-function updateSaturation() {
-  const rescued = boss ? (boss.dead ? 1 : (boss.maxhp - boss.hp) / boss.maxhp)
-                       : (totalGrey === 0 ? 1 : (totalGrey - greyLeft) / totalGrey);
-  const sat = rescued;                         // 0 = monochrome  →  1 = full colour
-  const bright = 0.88 + rescued * 0.12;         // brightens a touch as colour returns
-  worldCanvas.style.filter = `saturate(${sat}) brightness(${bright})`;
+// Colour Tide → world saturation, applied every frame with easing so the
+// colour visibly floods in (and seeps out) rather than snapping.
+function applyTide() {
+  tideVis += (tide - tideVis) * 0.04;
+  if (rush > 0) {
+    const pulse = 1.1 + Math.sin(timeT*6) * 0.08;
+    worldCanvas.style.filter = `saturate(${pulse}) brightness(1.06)`;
+  } else {
+    worldCanvas.style.filter = `saturate(${tideVis}) brightness(${0.88 + tideVis*0.12})`;
+  }
 }
 
 /* ---------------- Rendering ---------------- */
 function clamp01(v){return v<0?0:v>1?1:v;}
 
+let tideState_ = 0;   // per-frame snapshot for the renderers (tiles react to the tide)
+
 function draw() {
+  applyTide();                                     // Colour Tide -> world saturation (eased)
+  tideState_ = tState();
+
   // ---------- WORLD LAYER (starts greyscale; colour returns via CSS filter) ----------
   ctx = worldCtx;
   drawSky();                                       // gradient, stars, sun/moon, clouds
@@ -712,6 +826,7 @@ function draw() {
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
   drawAmbient();                                   // drifting leaves / bubbles / spores / ash
   for (const s of solids) drawBlock(s);            // ground / blocks (themed, neighbour-aware)
+  for (const n of nests) if (!n.dead) drawNest(n); // grey nests (drain pressure)
   for (const c of enemies) if (!c.dead) drawCrab(c); // hybrid crabs (grey until rescued)
   if (boss && !boss.dead) drawBoss(boss);
   ctx.restore();
@@ -724,7 +839,7 @@ function draw() {
   ctx.save();
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
   if (flag) drawFlag(flag);
-  for (const f of fruits) if (!f.got) drawFruit(f);
+  for (const f of fruits) if (!f.got && !f.hidden) drawFruit(f);
   for (const h of hearts) if (!h.got) drawHeartPickup(h);
   drawPinny(player);
   for (const pr of projectiles) drawProjectile(pr);
@@ -948,7 +1063,21 @@ function drawBlock(s) {
       ctx.fillRect(s.x+3+h1*6, s.y+5, 2, 3+h2*4);
       ctx.fillRect(s.x+14+h2*5, s.y+5, 2, 2+h1*5);
       ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(s.x, s.y, s.w, 1.2);
-      if (h1 > 0.7) { ctx.fillStyle = FLOWER_COLS[(h2*4)|0]; ctx.fillRect(s.x+5+h2*12, s.y-3, 2.5, 2.5); }
+      // life returns with the tide: flowers from FADED, theme props grow too
+      if (tideState_ >= 1 && h1 > 0.7) { ctx.fillStyle = FLOWER_COLS[(h2*4)|0]; ctx.fillRect(s.x+5+h2*12, s.y-3, 2.5, 2.5); }
+      if (tideState_ >= 1 && theme.deco === 'gear' && h2 > 0.72) {   // coral fans (Coral Gear Coast)
+        const fx = s.x + 4 + h1*14;
+        ctx.fillStyle = ['#ff7a9d','#ff9d5f','#c86bff'][(h1*3)|0];
+        ctx.beginPath(); ctx.arc(fx, s.y-1, 4, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillRect(fx-2.5, s.y-3.5, 1, 3); ctx.fillRect(fx+0.5, s.y-4.5, 1, 4); ctx.fillRect(fx+2, s.y-3, 1, 2.5);
+      }
+      if (tideState_ >= 1 && theme.deco === 'mush' && h2 > 0.75) {   // tiny mushrooms (Mushroom Marsh)
+        const mx = s.x + 5 + h1*12;
+        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(mx, s.y-4, 2, 4);
+        ctx.fillStyle = '#d63a5f'; ctx.beginPath(); ctx.arc(mx+1, s.y-4, 3.2, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffd9e2'; ctx.fillRect(mx-0.5, s.y-6, 1.2, 1.2);
+      }
     }
     if (!up && !lf && h2 > 0.5) { ctx.fillStyle = theme.moss; ctx.fillRect(s.x, s.y+5, 2, 6+h1*8); }
     if (!up && !rt && h1 > 0.5) { ctx.fillStyle = theme.moss; ctx.fillRect(s.x+s.w-2, s.y+5, 2, 6+h2*8); }
@@ -969,11 +1098,16 @@ function drawBlock(s) {
       ctx.fillRect(s.x+2+h1*6, s.y-2, 2, 3);
       ctx.fillRect(s.x+11+h2*4, s.y-3, 2, 4);
       ctx.fillRect(s.x+18+h1*3, s.y-2, 2, 3);
-      if (h1 > 0.62) {                                                    // wildflower
+      if (tideState_ >= 1 && h1 > 0.62) {          // wildflowers bloom from FADED onward
         const fx = s.x + 4 + h2*14;
         ctx.fillStyle = '#2fb96a'; ctx.fillRect(fx+1, s.y-4, 1.5, 4);
         ctx.fillStyle = FLOWER_COLS[(h2*4)|0]; ctx.fillRect(fx, s.y-6, 3.5, 3.5);
         ctx.fillStyle = '#fff2b0'; ctx.fillRect(fx+1.2, s.y-4.8, 1.2, 1.2);
+        if (tideState_ >= 2 && h2 > 0.5) {          // butterflies at COLOURFUL
+          const bx = fx + Math.sin(timeT*2 + h1*9)*6, by = s.y - 10 + Math.cos(timeT*2.6 + h2*7)*3;
+          ctx.fillStyle = FLOWER_COLS[(h1*4)|0];
+          ctx.fillRect(bx-1.5, by, 1.5, 1.5); ctx.fillRect(bx+0.5, by, 1.5, 1.5);
+        }
       }
       if (!lf && h2 > 0.5) {                                              // hanging vines
         ctx.fillStyle = '#2fb96a'; ctx.fillRect(s.x, s.y+grassTop, 2, 7+h1*9);
@@ -1181,6 +1315,7 @@ const CRAB_PALETTE = {
   mushroom:{ shell:'#c9a06a', shell2:'#a67f49', leg:'#7a5a34', claw:'#b98f5a', line:'#6a4a2a' },
   crate:   { shell:'#a9713c', shell2:'#875a2c', leg:'#6a4420', claw:'#b5813c', line:'#5a3a1a' },
   red:     { shell:'#e0592f', shell2:'#b5401f', leg:'#8a3018', claw:'#ff7a3c', line:'#7a2a12' },
+  sucker:  { shell:'#a89ab0', shell2:'#877a92', leg:'#6a5f75', claw:'#9a8ca6', line:'#4d4458' },
 };
 
 function drawCrab(c) {
@@ -1197,6 +1332,22 @@ function drawCrab(c) {
   ctx.beginPath(); ctx.ellipse(0, 16, 10, 2.4, 0, 0, 6.28); ctx.fill();
   ctx.fillStyle = 'rgba(120,120,120,0.15)';
   ctx.beginPath(); ctx.arc(0, 8, 15, 0, 6.28); ctx.fill();
+
+  // Paint-Sucker: obvious pulsing drain aura + colour streaks being inhaled
+  if (kind === 'sucker') {
+    const pu = 1 + Math.sin(c.wig*1.5)*0.15;
+    ctx.strokeStyle = 'rgba(150,140,160,0.5)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 8, 18*pu, 0, 6.28); ctx.stroke();
+    ctx.strokeStyle = 'rgba(150,140,160,0.25)';
+    ctx.beginPath(); ctx.arc(0, 8, 24*pu, 0, 6.28); ctx.stroke();
+    for (let i=0;i<4;i++) {                              // streaks spiralling inward
+      const a = c.wig*0.8 + i*1.57, d = 22 - ((c.wig*10 + i*6) % 16);
+      ctx.fillStyle = ['#ff8fa3','#ffd97a','#8fe0b0','#9fc8ff'][i];
+      ctx.globalAlpha = 0.5;
+      ctx.fillRect(Math.cos(a)*d - 1, 8 + Math.sin(a)*d*0.6 - 1, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
 
   // legs
   ctx.strokeStyle = P.leg; ctx.lineWidth = 2;
@@ -1260,6 +1411,52 @@ function drawCrab(c) {
   ctx.restore();
 }
 
+// --- Grey Nest: a spiky drain-mound. Cracks appear as it takes hits. ---
+function drawNest(n) {
+  const cx = n.x + n.w/2, base = n.y + n.h;
+  const pu = 1 + Math.sin(n.pulse)*0.12;
+  const flash = n.flash > 0 && (Math.floor(n.flash/3) % 2 === 0);
+  ctx.save();
+
+  // drain aura + rising grey wisps
+  ctx.strokeStyle = 'rgba(130,130,140,0.4)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(cx, n.y + 8, 17*pu, 0, 6.28); ctx.stroke();
+  ctx.fillStyle = 'rgba(160,160,170,0.5)';
+  for (let i=0;i<3;i++) {
+    const wy = base - ((n.pulse*14 + i*9) % 26);
+    ctx.fillRect(cx - 6 + i*5, wy, 2, 2);
+  }
+
+  // mound body
+  ctx.fillStyle = flash ? '#fff' : '#75757f';
+  ctx.beginPath(); ctx.moveTo(cx - 11, base);
+  ctx.quadraticCurveTo(cx - 11, n.y - 2, cx, n.y - 3);
+  ctx.quadraticCurveTo(cx + 11, n.y - 2, cx + 11, base);
+  ctx.closePath(); ctx.fill();
+  // spikes
+  ctx.fillStyle = flash ? '#eee' : '#5d5d66';
+  for (const [dx, dy, s] of [[-7,-1,4],[0,-5,5],[7,-1,4]]) {
+    ctx.beginPath(); ctx.moveTo(cx+dx-s*0.6, n.y+dy+4); ctx.lineTo(cx+dx, n.y+dy-s); ctx.lineTo(cx+dx+s*0.6, n.y+dy+4);
+    ctx.closePath(); ctx.fill();
+  }
+  // angry glow core + cracks per hit taken
+  ctx.fillStyle = '#3a3a44';
+  ctx.beginPath(); ctx.arc(cx, n.y + 8, 4.5, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#c9c9d4';
+  ctx.beginPath(); ctx.arc(cx, n.y + 8, 2, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#2e2e36'; ctx.lineWidth = 1.2;
+  if (n.hp <= 2) { ctx.beginPath(); ctx.moveTo(cx-8, n.y+3); ctx.lineTo(cx-3, n.y+9); ctx.lineTo(cx-6, n.y+13); ctx.stroke(); }
+  if (n.hp <= 1) { ctx.beginPath(); ctx.moveTo(cx+8, n.y+2); ctx.lineTo(cx+3, n.y+8); ctx.lineTo(cx+6, n.y+13); ctx.stroke(); }
+  // outline
+  ctx.strokeStyle = 'rgba(20,18,26,0.55)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx - 11, base);
+  ctx.quadraticCurveTo(cx - 11, n.y - 2, cx, n.y - 3);
+  ctx.quadraticCurveTo(cx + 11, n.y - 2, cx + 11, base);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 // --- General Ashclaw, the boss: a big spiky crab. ---
 function drawBoss(bo) {
   const flash = bo.hurt > 0 && (Math.floor(bo.hurt/4) % 2 === 0);
@@ -1319,22 +1516,32 @@ function roundRect(x,y,w,h,r) {
 }
 
 function drawHUD() {
-  const rescued = totalGrey===0 ? 1 : (totalGrey-greyLeft)/totalGrey;
-
   // dark plaques behind the HUD clusters (readability over any backdrop)
   ctx.fillStyle = 'rgba(24,12,28,0.38)';
   roundRect(4, 4, 116, 32, 8); ctx.fill();
   roundRect(VW-76, 4, 72, 32, 8); ctx.fill();
 
-  // Colour meter (top centre) + world name
+  // ---- COLOUR TIDE meter (top centre): fill, state ticks, state name ----
+  const st = tState();
   const barW = 108, barX = VW/2 - barW/2, barY = 9;
   ctx.fillStyle = 'rgba(0,0,0,0.32)'; roundRect(barX-3, barY-3, barW+6, 12, 6); ctx.fill();
   ctx.fillStyle = '#555'; roundRect(barX, barY, barW, 6, 3); ctx.fill();
-  const grd = ctx.createLinearGradient(barX,0,barX+barW,0);
-  grd.addColorStop(0,'#ff5f8d'); grd.addColorStop(.5,'#ffd23f'); grd.addColorStop(1,'#3ddc84');
-  ctx.fillStyle = grd; roundRect(barX, barY, Math.max(4,barW*rescued), 6, 3); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 7px system-ui'; ctx.textAlign='center';
-  ctx.fillText('COLOUR', VW/2, barY+13);
+  if (st === 3) {                                  // rainbow-animated fill during the rush
+    const cyc = (timeT*1.5) % 1;
+    const grd = ctx.createLinearGradient(barX,0,barX+barW,0);
+    for (let i=0;i<=4;i++) grd.addColorStop(i/4, `hsl(${((cyc + i/4)%1)*360},90%,62%)`);
+    ctx.fillStyle = grd; roundRect(barX, barY, barW, 6, 3); ctx.fill();
+  } else {
+    const grd = ctx.createLinearGradient(barX,0,barX+barW,0);
+    grd.addColorStop(0,'#ff5f8d'); grd.addColorStop(.5,'#ffd23f'); grd.addColorStop(1,'#3ddc84');
+    ctx.fillStyle = grd; roundRect(barX, barY, Math.max(4, barW*tideVis), 6, 3); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';        // state-threshold tick marks
+  ctx.fillRect(barX + barW*0.25 - 0.5, barY-1, 1, 8);
+  ctx.fillRect(barX + barW*0.55 - 0.5, barY-1, 1, 8);
+  ctx.font = 'bold 7px system-ui'; ctx.textAlign = 'center';
+  ctx.fillStyle = st === 3 ? `hsl(${(timeT*240)%360},95%,72%)` : TIDE_COLS[st];
+  ctx.fillText('COLOUR TIDE: ' + TIDE_NAMES[st], VW/2, barY+13);
   ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 7px system-ui';
   ctx.fillText(theme.name + '  ' + theme.stage, VW/2, barY+22);
 
@@ -1430,7 +1637,7 @@ const shopScreen = document.getElementById('shopScreen');
 
 function startGame() {
   levelIndex = 0; score = 0; melons = 0; lives = 3;
-  upg = { jump: 0, claw: 0, speed: 0 };
+  upg = { jump: 0, claw: 0, speed: 0, colour: 0 };
   // Optional level jump: open the game with #3 in the URL to start on level 3.
   const h = parseInt((location.hash || '').replace('#',''), 10);
   if (h >= 1 && h <= LEVELS.length) levelIndex = h - 1;
@@ -1438,7 +1645,6 @@ function startGame() {
   endScreen.classList.add('hidden');
   shopScreen.classList.add('hidden');
   buildLevel(levelIndex);
-  updateSaturation();
   running = true;
 }
 
@@ -1451,16 +1657,16 @@ function finishLevel() {
 function advanceLevel() {
   levelIndex++;
   buildLevel(levelIndex);
-  updateSaturation();
   running = true;
 }
 
 /* ---------------- Shop ---------------- */
 const SHOP = [
-  { key:'jump',  ic:'⬆️', nm:'Jump Boost', dc:'Leap higher',           max:3, price:l=>8+l*7 },
-  { key:'claw',  ic:'💥', nm:'Claw Power',  dc:'Longer, faster claw',   max:3, price:l=>8+l*7 },
-  { key:'speed', ic:'💨', nm:'Speed Boots', dc:'Run faster',            max:3, price:l=>8+l*7 },
-  { key:'heal',  ic:'❤️', nm:'Extra Heart', dc:'Restore one life',      max:0, price:()=>6 },
+  { key:'jump',  ic:'⬆️', nm:'Jump Boost',   dc:'Leap higher',                        max:3, price:l=>8+l*7 },
+  { key:'claw',  ic:'💥', nm:'Claw Power',    dc:'Longer, faster claw',                max:3, price:l=>8+l*7 },
+  { key:'speed', ic:'💨', nm:'Speed Boots',   dc:'Run faster',                         max:3, price:l=>8+l*7 },
+  { key:'colour',ic:'🌈', nm:'Colour Boost',  dc:'Start brighter, slow the grey drain',max:2, price:l=>10+l*8 },
+  { key:'heal',  ic:'❤️', nm:'Extra Heart',   dc:'Restore one life',                   max:0, price:()=>6 },
 ];
 
 function openShop() { renderShop(); shopScreen.classList.remove('hidden'); }
@@ -1523,7 +1729,7 @@ function frame() {
 }
 // draw an idle backdrop behind the title so the canvas isn't blank
 score = 0; melons = 0; lives = 3;
-buildLevel(0); updateSaturation(); draw();
+buildLevel(0); applyTide(); draw();
 requestAnimationFrame(frame);
 </script>
 </body>

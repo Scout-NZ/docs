@@ -55,12 +55,30 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
 - **Boss finale:** reach the end to face **General Ashclaw**, a giant spiky crab.
   Stomp or claw him six times — each hit brings back more colour — to win. His
   health shows in a bar at the top.
-- **Worlds start fully greyscale** (the grey crabs have drained the colour) and
-  **fill back to full colour** as you defeat those crabs — the headline mechanic.
+- **COLOUR TIDE — the core system.** Every world starts drained and shifts
+  through four states as you play: **GREY → FADED → COLOURFUL → RAINBOW RUSH**.
+  - The tide **rises** when you stomp/claw crabs (extra for Paint-Suckers),
+    collect watermelons, or smash Grey Nests.
+  - It **drains** while Paint-Sucker Crabs or Grey Nests stay alive, and dips
+    when you get hit — the grey is always trying to return.
+  - Clear every crab and nest and the level **stabilises**, triggering a one-time
+    **RAINBOW RUSH**: confetti, a rainbow trail, double points, and boosted
+    jump/speed/claw for a few seconds.
+  - The world reacts: wildflowers bloom from FADED, butterflies and **hidden
+    watermelons appear at COLOURFUL**, coral fans grow on Coral Gear Coast,
+    tiny mushrooms sprout in Mushroom Marsh, and colourful worlds calm the
+    crabs slightly. The claw also reaches further when the world is colourful.
+- **New drain enemies:** the **Paint-Sucker Crab** (pulsing grey aura, visibly
+  inhaling colour streaks) and the **Grey Nest** (spiky 3-hit mound that drains
+  colour and hatches grey crabs until destroyed).
 - Pinny the pineapple crab **always stays full colour** — as do the watermelons,
   the flag and the HUD — so they're always easy to see even in a grey world.
 - **Collect watermelon slices** (🍉 counter) and earn **stars** (★) for defeating
-  crabs. HUD shows a Pinny portrait, hearts, the colour meter, and a level timer.
+  crabs. HUD shows a Pinny portrait, hearts, the Colour Tide meter (with state
+  name and threshold ticks), and a level timer.
+- **CRAB SHOP between levels:** spend watermelons on Jump Boost, Claw Power,
+  Speed Boots, **Colour Boost** (start levels brighter and slow the grey drain),
+  or an Extra Heart. Upgrades last the whole run.
 - **Hybrid crab enemies that fight back**, each with its own attack:
   - **Grey** and **crate** crabs *charge* — they shake to wind up, then dash at
     Pinny (crate crabs are armoured and take two hits).
