@@ -16,20 +16,23 @@
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-user-select: none; user-select: none; touch-action: none;
   }
-  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #wrap { position: fixed; inset: 0; }
   canvas {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
     display: block;
     image-rendering: pixelated; image-rendering: crisp-edges;
-    /* saturation is driven by JS to express the "colour draining" theme */
-    transition: filter 0.5s ease;
     touch-action: none;
   }
+  /* World layer desaturates to show the stolen colour; foreground stays full colour.
+     The filter is animated per-frame in JS (Colour Tide), so no CSS transition. */
+  #world { z-index: 1; }
+  #game  { z-index: 2; }
 
   /* ---- On-screen touch controls ---- */
   #controls { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
   .pad {
     position: absolute; bottom: max(18px, env(safe-area-inset-bottom));
-    display: flex; gap: 14px; pointer-events: none;
+    display: flex; align-items: flex-end; gap: 14px; pointer-events: none;
   }
   #padL { left: max(16px, env(safe-area-inset-left)); }
   #padR { right: max(16px, env(safe-area-inset-right)); }
@@ -43,6 +46,7 @@
     backdrop-filter: blur(2px);
   }
   #jump { width: 96px; height: 96px; font-size: 22px; background: rgba(255,214,102,0.75); border-color: #ffe9a8; }
+  #claw { width: 76px; height: 76px; font-size: 16px; color: #5a1e10; background: rgba(255,138,80,0.8); border-color: #ffcaa0; }
   .btn.press { transform: translateY(3px) scale(0.96); box-shadow: 0 1px 0 rgba(0,0,0,0.25), inset 0 3px 8px rgba(255,255,255,0.6); background: rgba(255,255,255,0.85); }
 
   /* ---- Overlays (title / win / lose) ---- */
@@ -69,10 +73,29 @@
   .play:active { transform: translateY(4px); box-shadow: 0 2px 0 #b5651d, 0 6px 12px rgba(0,0,0,0.35); }
   .hint { font-size: 13px; opacity: 0.7; margin-top: 6px; }
   .stat { font-size: clamp(16px,4vw,22px); font-weight: 700; }
+
+  /* ---- Shop ---- */
+  .shop-bank { font-size: clamp(15px,4vw,20px); font-weight: 800; color: #ffd23f; }
+  .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px;
+    width: min(440px, 92vw); }
+  .shop-card { pointer-events: auto; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.18);
+    border-radius: 14px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .shop-card .ic { font-size: 30px; line-height: 1; }
+  .shop-card .nm { font-weight: 800; font-size: 14px; }
+  .shop-card .dc { font-size: 11px; opacity: 0.75; text-align: center; min-height: 26px; }
+  .shop-card .pips { display: flex; gap: 3px; }
+  .shop-card .pip { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+  .shop-card .pip.on { background: #3ddc84; }
+  .buy { pointer-events: auto; cursor: pointer; border: none; border-radius: 999px; font-weight: 800;
+    font-size: 13px; padding: 7px 14px; color: #3a1030; background: linear-gradient(180deg,#ffe58a,#ffb347);
+    box-shadow: 0 3px 0 #b5651d; }
+  .buy:active { transform: translateY(2px); box-shadow: 0 1px 0 #b5651d; }
+  .buy:disabled { background: #6b6474; color: #b8b2c2; box-shadow: 0 3px 0 #47414f; cursor: default; }
+  .buy.max { background: #3ddc84; color: #123; box-shadow: 0 3px 0 #227a49; }
 </style>
 </head>
 <body>
-  <div id="wrap"><canvas id="game"></canvas></div>
+  <div id="wrap"><canvas id="world"></canvas><canvas id="game"></canvas></div>
 
   <!-- Touch controls -->
   <div id="controls">
@@ -81,6 +104,7 @@
       <div class="btn" id="right">▶</div>
     </div>
     <div class="pad" id="padR">
+      <div class="btn" id="claw">CLAW</div>
       <div class="btn" id="jump">JUMP</div>
     </div>
   </div>
@@ -91,7 +115,15 @@
     <div class="title">CRABBY WORLD<br/>The Colour Rescue</div>
     <div class="sub">The grey crabs stole all the colour! Help <b>Pinny</b>, the one-eyed pineapple crab, bounce on them to bring the world back to life.</div>
     <button class="play" id="startBtn">PLAY ▶</button>
-    <div class="hint">Tap ◀ ▶ to walk &nbsp;•&nbsp; Tap JUMP to hop &nbsp;•&nbsp; Land on grey crabs!</div>
+    <div class="hint">Tap ◀ ▶ to walk &nbsp;•&nbsp; JUMP to hop &nbsp;•&nbsp; CLAW to swipe crabs &nbsp;•&nbsp; or bounce on them!</div>
+  </div>
+
+  <!-- Shop screen (between levels) -->
+  <div class="screen hidden" id="shopScreen">
+    <div class="title" style="font-size:clamp(24px,6vw,42px)">CRAB SHOP</div>
+    <div class="shop-bank">🍉 <span id="shopMelons">0</span> watermelons</div>
+    <div id="shopItems" class="shop-grid"></div>
+    <button class="play" id="shopContinue">CONTINUE ▶</button>
   </div>
 
   <!-- End screen (win/lose) -->
@@ -115,8 +147,14 @@
    Everything is drawn with canvas primitives — no assets.
    ============================================================ */
 
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+const worldCanvas = document.getElementById('world');
+const fgCanvas = document.getElementById('game');
+const worldCtx = worldCanvas.getContext('2d');
+const fgCtx = fgCanvas.getContext('2d');
+// `ctx` is the current draw target. The world layer is desaturated to express
+// the stolen colour; the foreground layer (Pinny + colourful bursts + HUD)
+// always stays at full colour, so Pinny never goes grey.
+let ctx = worldCtx;
 
 // Internal (virtual) resolution — the game world is drawn at this size,
 // then the canvas is scaled up with CSS to fill the phone screen.
@@ -125,97 +163,360 @@ const TILE = 24;               // tile size in world pixels
 const GRAV = 0.55;
 const MOVE = 0.7, MAXVX = 3.2, FRICT = 0.82;
 const JUMP_V = 9.6;
+const MAX_LIVES = 5;           // heart pickups can top up to this many lives
 
-canvas.width = VW; canvas.height = VH;
+worldCanvas.width = fgCanvas.width = VW; worldCanvas.height = fgCanvas.height = VH;
 
 // --- Fit the canvas to the screen while keeping aspect ratio ---
 function resize() {
   const availW = window.innerWidth, availH = window.innerHeight;
   const scale = Math.min(availW / VW, availH / VH);
-  canvas.style.width = Math.floor(VW * scale) + 'px';
-  canvas.style.height = Math.floor(VH * scale) + 'px';
+  const w = Math.floor(VW * scale) + 'px', h = Math.floor(VH * scale) + 'px';
+  worldCanvas.style.width = fgCanvas.style.width = w;
+  worldCanvas.style.height = fgCanvas.style.height = h;
 }
 window.addEventListener('resize', resize);
 resize();
+
+/* ------------------------------------------------------------------
+   GENERATED ART (Higgsfield, styled on the creator's hybrid-crab photos).
+   Sprites/backgrounds load at runtime from the CDN; sprites are chroma-
+   keyed in-canvas (models can't output alpha). If a download or CORS
+   read fails — offline, strict CSP, sandbox — the game silently keeps
+   its code-drawn art, so it is always playable. See game/assets.json.
+   ------------------------------------------------------------------ */
+const ART_SPRITES = {
+  // key = the solid backdrop colour each sprite was generated on
+  pinny:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045118_a7e802a5-ed24-4989-8e2d-9f01fa17d6b1.png', key:[0,0,255] },
+  grey:   { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045126_8f9d7ad8-efff-453a-b1fe-bfafe7d79571.png', key:[255,0,255] },
+  sucker: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045129_5d5c5a90-23b9-41e8-9baa-46ad88a55932.png', key:[0,255,0] },
+  flower: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045123_9da3a942-9ed3-41be-bd9c-1f65a012bcda.png', key:[255,0,255] },
+};
+const ART_BGS = {   // theme index -> painted parallax backdrop
+  0: 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png',
+  4: 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png',
+};
+const sprites = {}, bgArt = {};
+
+// Remove the key colour (including enclosed pockets) and trim to content.
+function chromaKey(img, key) {
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  let d;
+  try { d = g.getImageData(0, 0, c.width, c.height); }
+  catch (e) { return null; }                          // CORS-tainted: give up, use code art
+  const px = d.data, kr = key[0], kg = key[1], kb = key[2];
+  let minX = c.width, minY = c.height, maxX = 0, maxY = 0;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+    const i = (y * c.width + x) * 4;
+    const dr = px[i]-kr, dg = px[i+1]-kg, db = px[i+2]-kb;
+    if (dr*dr + dg*dg + db*db < 8100) px[i+3] = 0;    // within 90 of key -> transparent
+    else if (px[i+3] > 0) {
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX <= minX || maxY <= minY) return null;
+  g.putImageData(d, 0, 0);
+  const t = document.createElement('canvas');
+  t.width = maxX - minX + 1; t.height = maxY - minY + 1;
+  t.getContext('2d').drawImage(c, minX, minY, t.width, t.height, 0, 0, t.width, t.height);
+  return t;
+}
+
+function loadArt() {
+  for (const [name, s] of Object.entries(ART_SPRITES)) {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => { const k = chromaKey(img, s.key); if (k) sprites[name] = k; };
+    img.onerror = () => {};                            // keep code-drawn fallback
+    img.src = s.url;
+  }
+  for (const [idx, url] of Object.entries(ART_BGS)) {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => { bgArt[idx] = img; };
+    img.onerror = () => {};
+    img.src = url;
+  }
+}
+loadArt();
 
 /* ------------------------------------------------------------------
    LEVELS
    Legend:
      X = solid ground/block   . = empty
      P = player start         G = grey crab enemy
-     o = fruit (score)        F = finish flag
+     o = watermelon           H = heart (extra life)
+     F = finish flag          B = boss
    ------------------------------------------------------------------ */
 const LEVELS = [
+  // Level 1: Crabby Cove
   [
-    "............................................",
-    "............................................",
-    "..............o.....o.......................",
-    "............XXXXX..........o...........F.....",
-    ".................o......XXXX.........XXXXX...",
-    "....P......o..........................X......",
+    "..............................................",
+    "..............................................",
+    "..............o.....o.........................",
+    "............XXXXX..........o...........F......",
+    ".................o......XXXX.........XXXXX....",
+    "....P......o..........................X.......",
     "..XXXX...XXX......G.........G.....G....X......",
-    "..X..............................XXX..X......",
+    "..X..............................XXX..X.......",
     "..X....o..o...XXXXXXX....XXXX..........X......",
     "..X..XXXXXX..........G..............G..X......",
     "XXXX........XX..............XXXXXXXXXXXX......",
-    "X...................G........................",
+    "X.........H.........G.........................",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
+  // Level 2: Tide Pools
   [
-    "..................................................",
-    ".........o.o.o....................................",
+    "...................................................",
+    ".........o.o.o.....................................",
     ".......XXXXXXX.........o......o..........F.........",
     "...................XXXXXX...XXXXXX....XXXXX........",
-    "...P.....G.....G.......................X..........",
-    ".XXXXX..XXX...XXX..G........G.....G....X..........",
-    ".X..........................XXX.XXX...X..........",
-    ".X...o...........o....o...............X..........",
-    ".X..XXXX......G..XXX..XXX......G..G....X..........",
-    ".X..........XXX...............XXXX.....X..........",
-    ".X..o..............G.....................X.......",
-    ".XXXX...XXXX....XXXXXXX...G......XXXXXXXXXX.......",
-    ".X......................XXXX.....................",
+    "...P.....G.....G.......................X...........",
+    ".XXXXX..XXX...XXX..G........G.....G....X...........",
+    ".X..........................XXX.XXX...X............",
+    ".X...o...........o....o...............X............",
+    ".X..XXXX......G..XXX..XXX......G..G....X...........",
+    ".X..........XXX...............XXXX.....X...........",
+    ".X..o..............G.....................X.........",
+    ".XXXX...XXXX....XXXXXXX...G......XXXXXXXXXX........",
+    ".X........H.............XXXX.......................",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
+  // Level 3: Palm Cove
+  [
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...............................................",
+    "...................o...........................",
+    ".................XXXX..........................",
+    ".......XXXX................XXXX.............o..",
+    "...XXXX........XXXX....XXXX........XXXXX.......",
+    "..P...G..H..G..N...G......G....G.......F.......",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  ],
+  // Level 4: Rocky Steps
+  [
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..........................o...................",
+    "........................XXXXX.................",
+    ".................XXXX.........................",
+    "..........XXXX................................",
+    "...XXXX........XXXX....XXXX.......XXXX........",
+    "..P....G..H...G.......G......G.....G....F.....",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  ],
+  // Level 5: Grey Gauntlet
+  [
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    ".........o.........o.........o................",
+    ".......XXXX.......XXXX.......XXXX.............",
+    "..............................................",
+    "....XXXX......XXXX......XXXX......XXXX........",
+    ".P..G.H.G..N.G....G....G....G....G.....F......",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  ],
+  // Level 6: Colour Finale
+  [
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "..............................................",
+    "....o......o......o......o......o......o......",
+    "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
+    "..............................................",
+    "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
+    ".P..G..G..G..G..G..N..G..G..G..G..G.H..F......",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  ],
+  // Level 7: Ashclaw's Keep (BOSS)
+  [
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    "...................................",
+    ".........o............o............",
+    ".......XXXX..........XXXX..........",
+    "..P.....H.......B..................",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  ]
+];
+
+/* ------------------------------------------------------------------
+   WORLD THEMES — one per level, matching the concept art.
+   Each world begins fully GREYSCALE and fills back to colour as its
+   grey crabs are defeated (see the Colour Tide system). blockStyle picks the
+   platform look; kinds are the hybrid crab types that live there.
+   ------------------------------------------------------------------ */
+const THEMES = [
+  { name:'EMERALD FALLS',       stage:'1-1', sky:['#4fa3e8','#9fdcf0','#d8f3b8'], hills:['#3f9468','#2c7050'], far:'#265c49', cloud:'#ffffff', sun:'#fff3ae', sunY:40,  deco:'jungle', amb:{col:'#b8f0a8',dx:0.05,dy:0.22},            moss:'#4a9e58', block:'grass', kinds:['grey','flower','red'] },
+  { name:'CORAL GEAR COAST',    stage:'1-4', sky:['#2f86c9','#6fc0e8','#c8f0f4'], hills:['#3f93a8','#2f7185'], far:'#1f5568', cloud:'#eafaff', sun:'#fff8d0', sunY:36,  deco:'gear',   amb:{col:'#d8f6ff',dx:0,dy:-0.35},               moss:'#3fae9c', block:'stone', kinds:['grey','crate','sucker'] },
+  { name:'PALM COVE',           stage:'1-2', sky:['#4fb2e8','#9fdcf0','#ffe2ad'], hills:['#4aa878','#357c58'], far:'#2d6b52', cloud:'#fff4de', sun:'#ffedb0', sunY:46,  deco:'palm',   amb:{col:'#ffe6a8',dx:0.15,dy:0.12},             moss:'#4a9e58', block:'grass', kinds:['grey','flower','sucker'] },
+  { name:'BOX MOUNTAINS',       stage:'1-5', sky:['#3f9bd6','#8fcbe8','#c9d98f'], hills:['#7f9350','#5f7340'], far:'#4d5c31', cloud:'#f4ecd4', sun:'#fff3ae', sunY:38,  deco:'crate',  amb:{col:'#ead9a8',dx:0.1,dy:0.08},              moss:'#6f8b3a', block:'crate', kinds:['grey','crate','sucker'] },
+  { name:'MUSHROOM MARSH',      stage:'1-6', sky:['#1d1436','#45276b','#c9694a'], hills:['#38234f','#271a3a'], far:'#1e1533', cloud:'#6a4a86', sun:'#ffb46a', sunY:150, stars:true, deco:'mush', amb:{col:'#d0a4ff',dx:0.03,dy:-0.18,glow:true}, moss:'#8a4a9e', block:'stone', kinds:['grey','mushroom','sucker'] },
+  { name:'MONOCHROME WASTELAND',stage:'1-9', sky:['#2e3238','#4d545e','#78808a'], hills:['#454b54','#33383f'], far:'#2a2e35', cloud:'#9aa0a8', sun:'#e8ecf2', sunY:42,  stars:true, deco:'ruin', amb:{col:'#b9bec6',dx:0.06,dy:0.3},             moss:'#5a6a52', block:'stone', kinds:['grey','sucker','crate','mushroom'] },
+  { name:"ASHCLAW'S KEEP",      stage:'BOSS',sky:['#160f1e','#31213e','#5a3546'], hills:['#241a30','#180f20'], far:'#130c1b', cloud:'#4a3550', sun:'#ff9c5a', sunY:120, stars:true, deco:'keep', amb:{col:'#ff9c5a',dx:0.02,dy:-0.28,glow:true}, moss:'#6a3a4a', block:'stone', kinds:['grey'] },
 ];
 
 // --- Game state ---
-let level, solids, enemies, fruits, flag, player, cam;
-let totalGrey, greyLeft, score, lives, levelIndex, running, particles;
+let level, solids, enemies, fruits, hearts, flag, player, cam, theme, boss, projectiles;
+let totalGrey, greyLeft, score, melons, lives, levelIndex, running, particles;
+let timeT, bannerT, ambient, solidSet, nests;
+let upg = { jump: 0, claw: 0, speed: 0, colour: 0 };   // upgrade levels bought in the shop
+
+/* ------------------------------------------------------------------
+   COLOUR TIDE — the core system. A continuous 0..1 value per level:
+     rises  : stomps/claws on crabs, watermelons, destroying grey nests
+     drains : while Paint-Sucker crabs or Grey Nests are alive; on hits
+   Four states: GREY (<0.25) · FADED (<0.55) · COLOURFUL (≥0.55) ·
+   RAINBOW RUSH (timed bonus when the level is fully stabilised).
+   The world visibly wakes up as the tide rises; the pineapple crab is
+   the source of colour and never greys out.
+   ------------------------------------------------------------------ */
+let tide = 0, tideVis = 0, graceT = 0, killGain = 0.1, stabilised = false;
+let rush = 0, rushUsed = false;
+
+function gainTide(v) {
+  tide = clampv(tide + v, 0, 1);
+  if (v > 0) graceT = 90;              // drain pauses briefly after every gain
+}
+function tState() {                     // 0 grey · 1 faded · 2 colourful · 3 rush
+  if (rush > 0) return 3;
+  return tide < 0.25 ? 0 : tide < 0.55 ? 1 : 2;
+}
+const TIDE_NAMES = ['GREY', 'FADED', 'COLOURFUL', 'RAINBOW RUSH!'];
+const TIDE_COLS  = ['#b9bec6', '#ffd97a', '#7de6a0', '#fff'];
+function addScore(n) { score += rush > 0 ? n * 2 : n; }   // rush doubles points
 
 function buildLevel(idx) {
   const map = LEVELS[idx];
-  solids = []; enemies = []; fruits = []; flag = null; particles = [];
+  theme = THEMES[idx] || THEMES[THEMES.length - 1];
+  solids = []; enemies = []; fruits = []; hearts = []; flag = null; boss = null; particles = []; projectiles = []; nests = [];
+  let gi = 0; // crab index, used to cycle through this world's crab kinds
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
       const ch = map[r][c];
       const x = c * TILE, y = r * TILE;
       if (ch === 'X') solids.push({ x, y, w: TILE, h: TILE });
       else if (ch === 'P') player = makePlayer(x, y);
-      else if (ch === 'G') enemies.push(makeCrab(x, y));
+      else if (ch === 'G') { enemies.push(makeCrab(x, y, theme.kinds[gi % theme.kinds.length])); gi++; }
       else if (ch === 'o') fruits.push({ x: x + TILE/2, y: y + TILE/2, r: 7, got: false, bob: Math.random()*6.28 });
+      else if (ch === 'H') hearts.push({ x: x + TILE/2, y: y + TILE/2, got: false, bob: Math.random()*6.28 });
       else if (ch === 'F') flag = { x: x + 4, y: y - TILE, w: 8, h: TILE*2 };
+      else if (ch === 'B') boss = makeBoss(x, y);
+      else if (ch === 'N') nests.push({ x: x+2, y: y+8, w: 20, h: 16, hp: 3, maxhp: 3,
+                                        flash: 0, pulse: Math.random()*6.28, spawnT: 300, dead: false });
     }
   }
   level = { w: map[0].length * TILE, h: map.length * TILE };
+  solidSet = new Set(solids.map(s => (s.x/TILE) + ',' + (s.y/TILE)));   // neighbour lookups for tile art
+  ambient = [];
+  for (let i = 0; i < 26; i++)
+    ambient.push({ x: Math.random()*level.w, y: Math.random()*level.h, ph: Math.random()*6.28, sp: Math.random() });
   totalGrey = enemies.length; greyLeft = enemies.length;
   cam = { x: 0, y: 0 };
+  timeT = 0; bannerT = 120;   // per-level timer + level-name banner
+
+  // Colour Tide setup: worlds start drained; the Colour Boost upgrade gives a
+  // brighter start. Each defeated crab restores an equal share of the tide.
+  tide = boss ? 0 : clampv(0.04 + upg.colour * 0.15, 0, 0.5);
+  tideVis = tide; graceT = 0; stabilised = false; rush = 0; rushUsed = false;
+  killGain = 0.9 / Math.max(1, totalGrey + nests.length * 2);
+  fruits.forEach((f, i) => { f.hidden = (i % 3 === 2); });   // some fruit only appears at COLOURFUL
 }
 
 function makePlayer(x, y) {
-  return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0 };
+  return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0, atk: 0, atkCd: 0,
+           squash: 0, wasGround: false };
 }
-function makeCrab(x, y) {
-  return { x: x+3, y: y+6, w: 18, h: 14, vx: (Math.random()<.5?-1:1)*0.7, dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3 };
+function makeCrab(x, y, kind) {
+  kind = kind || 'grey';
+  return { x: x+3, y: y+6, w: 18, h: 14, kind, vx: (Math.random()<.5?-1:1)*0.7,
+           dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3,
+           hp: kind === 'crate' ? 2 : 1, hitFlash: 0,      // crate crabs are armoured
+           onG: false, dir: 1,
+           shootCd: 90 + Math.random()*140,                 // projectile timer (shooters)
+           lungeCd: 90 + Math.random()*120, windup: 0, charge: 0 }; // lunge timers (chargers)
+}
+function makeBoss(x, y) {
+  // General Ashclaw — big spiky crab. Beaten by 6 stomps/claws.
+  return { x: x-12, y: y-24, w: 42, h: 30, vx: 1.1, vy: 0, hp: 6, maxhp: 6,
+           hurt: 0, dead: false, wig: 0, shootCd: 150, name: 'GENERAL ASHCLAW' };
+}
+
+// A crab attack projectile (pinch / pollen / spore).
+function fireProjectile(c, dir) {
+  const cx = c.x + c.w/2, cy = c.y + c.h/2;
+  if (c.kind === 'red')
+    projectiles.push({ x:cx+dir*8, y:cy,   vx:dir*2.4, vy:0,    g:0,    kind:'pinch',  r:4, life:150, bob:0 });
+  else if (c.kind === 'flower')
+    projectiles.push({ x:cx+dir*8, y:cy-2, vx:dir*1.4, vy:0,    g:0,    kind:'pollen', r:4, life:180, bob:Math.random()*6.28 });
+  else if (c.kind === 'mushroom')
+    projectiles.push({ x:cx+dir*6, y:cy-4, vx:dir*0.8, vy:-1.4, g:0.03, kind:'spore',  r:4, life:210, bob:Math.random()*6.28 });
+}
+
+// Hurt a crab (stomp or claw). dir = knockback direction, 0 = none.
+// Armoured crabs (crate) survive the first hit and flash instead.
+function damageCrab(c, dir) {
+  c.hp--;
+  if (c.hp <= 0) {
+    c.dead = true; greyLeft--; addScore(150);
+    gainTide(killGain * (c.kind === 'sucker' ? 1.6 : 1));   // popping a drainer restores extra
+    spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c']);
+  } else {
+    c.hitFlash = 22; addScore(25); c.charge = 0; c.windup = 0;   // interrupt its attack
+    if (dir) { c.vx = dir > 0 ? 0.7 : -0.7; c.x += dir*3; }
+    spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#fff','#ffd23f']);
+  }
+}
+
+// Grey Nests: spiky drain-mounds. Three hits to crack open; each destroyed
+// nest gives a big tide burst. While alive they drain colour and hatch crabs.
+function damageNest(n) {
+  if (n.flash > 0) return;
+  n.hp--; n.flash = 20;
+  if (n.hp <= 0) {
+    n.dead = true; addScore(250); gainTide(0.12);
+    spawnBurst(n.x + n.w/2, n.y + n.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c','#fff'], 26);
+  } else {
+    spawnBurst(n.x + n.w/2, n.y + 2, ['#cfcfcf','#9a9a9a']);
+  }
 }
 
 /* ---------------- Input ---------------- */
-const keys = { left: false, right: false, jump: false, jumpQueued: false };
+const keys = { left: false, right: false, jump: false, jumpQueued: false, attack: false, attackQueued: false };
 function bindBtn(id, key) {
   const el = document.getElementById(id);
-  const on = (e) => { e.preventDefault(); keys[key] = true; if (key==='jump') keys.jumpQueued = true; el.classList.add('press'); };
+  const on = (e) => { e.preventDefault(); keys[key] = true; if (key==='jump') keys.jumpQueued = true; if (key==='attack') keys.attackQueued = true; el.classList.add('press'); };
   const off = (e) => { e.preventDefault(); keys[key] = false; el.classList.remove('press'); };
   el.addEventListener('touchstart', on, {passive:false});
   el.addEventListener('touchend', off, {passive:false});
@@ -223,18 +524,21 @@ function bindBtn(id, key) {
   el.addEventListener('mousedown', on);
   window.addEventListener('mouseup', off);
 }
-bindBtn('left','left'); bindBtn('right','right'); bindBtn('jump','jump');
+bindBtn('left','left'); bindBtn('right','right'); bindBtn('jump','jump'); bindBtn('claw','attack');
 
+const isAtk = (k) => k==='x' || k==='k' || k==='j' || k==='Shift';
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
   if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
   if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') { keys.jump = true; keys.jumpQueued = true; }
+  if (isAtk(e.key)) { keys.attack = true; keys.attackQueued = true; }
 });
 window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
   if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
   if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') keys.jump = false;
+  if (isAtk(e.key)) keys.attack = false;
 });
 
 /* ---------------- Physics helpers ---------------- */
@@ -274,16 +578,26 @@ function spawnBurst(x, y, colors, n=14) {
 function update() {
   const p = player;
 
+  timeT += 1/60;                 // level timer (display only)
+  if (bannerT > 0) bannerT--;    // level-name banner fade
+
   // Horizontal input
   if (keys.left)  { p.vx -= MOVE; p.face = -1; }
   if (keys.right) { p.vx += MOVE; p.face = 1; }
   if (!keys.left && !keys.right) p.vx *= FRICT;
-  p.vx = Math.max(-MAXVX, Math.min(MAXVX, p.vx));
+  const maxvx = MAXVX + upg.speed * 0.7 + (rush > 0 ? 0.6 : 0);   // Speed Boots + Rainbow Rush
+  p.vx = Math.max(-maxvx, Math.min(maxvx, p.vx));
   if (Math.abs(p.vx) > 0.3) p.walk += 0.25;
 
   // Jump (with tiny queue so taps feel responsive)
-  if ((keys.jump || keys.jumpQueued) && p.onGround) { p.vy = -JUMP_V; p.onGround = false; }
+  if ((keys.jump || keys.jumpQueued) && p.onGround) { p.vy = -(JUMP_V + upg.jump * 1.2 + (rush > 0 ? 1.0 : 0)); p.onGround = false; }  // Jump Boost + Rush
   keys.jumpQueued = false;
+
+  // Claw attack — a quick swipe in front of Pinny, with a short cooldown
+  if (p.atkCd > 0) p.atkCd--;
+  if (p.atk > 0) p.atk--;
+  if ((keys.attack || keys.attackQueued) && p.atk <= 0 && p.atkCd <= 0) { p.atk = 14; p.atkCd = 26 - upg.claw * 5 - (rush > 0 ? 4 : 0); }  // Claw Power + Rush
+  keys.attackQueued = false;
 
   p.vy += GRAV;
   if (p.vy > 12) p.vy = 12;
@@ -293,46 +607,209 @@ function update() {
   if (p.x < 0) { p.x = 0; p.vx = 0; }
   if (p.x + p.w > level.w) { p.x = level.w - p.w; p.vx = 0; }
 
+  if (p.onGround && !p.wasGround) p.squash = 8;   // landing squash
+  if (p.squash > 0) p.squash--;
+  p.wasGround = p.onGround;
+
   if (p.hurt > 0) p.hurt--;
   if (--p.blink < 0) p.blink = 120 + Math.random()*120;
 
-  // Enemies
+  // Active claw hitbox — a small reach in front of Pinny during the swing
+  let atkBox = null;
+  if (p.atk > 6) {
+    // Claw Power upgrade + colour empowers the claw (weak in grey, strongest in rush)
+    const reach = 18 + upg.claw * 8 + (tState() >= 2 ? 3 : 0) + (rush > 0 ? 5 : 0);
+    atkBox = { x: p.face > 0 ? p.x + p.w - 2 : p.x - reach + 2, y: p.y + 2, w: reach, h: p.h - 2 };
+  }
+
+  // Enemies — each crab type fights back in its own way
   for (const c of enemies) {
     if (c.dead) continue;
     c.wig += 0.2;
-    c.vy = (c.vy || 0) + GRAV; if (c.vy > 12) c.vy = 12;
-    c.x += c.vx;
-    // patrol turn-around at edges / walls
+    if (c.hitFlash > 0) c.hitFlash--;
+    if (c.shootCd > 0) c.shootCd--;
+    if (c.lungeCd > 0) c.lungeCd--;
+    if (c.windup > 0) c.windup--;
+    if (c.charge > 0) c.charge--;
+
+    const dxp = (p.x + p.w/2) - (c.x + c.w/2);
+    const sameLevel = Math.abs((p.y + p.h) - (c.y + c.h)) < 40;
+
+    // --- attacks ---
+    if (c.kind === 'red' || c.kind === 'flower' || c.kind === 'mushroom') {
+      // shooters: lob a projectile at Pinny when he's near and roughly level
+      if (c.onG && c.shootCd <= 0 && Math.abs(dxp) < 155 && sameLevel) {
+        fireProjectile(c, dxp > 0 ? 1 : -1);
+        c.shootCd = 150 + Math.random()*110;
+      }
+    } else if (c.kind !== 'sucker') {
+      // grey & crate: telegraphed charge/lunge toward Pinny
+      if (c.onG && c.charge <= 0 && c.windup <= 0 && c.lungeCd <= 0 && Math.abs(dxp) < 120 && sameLevel) {
+        c.windup = 26; c.dir = dxp > 0 ? 1 : -1;                 // wind up (shake)
+      }
+      if (c.windup === 1) { c.charge = 30; c.lungeCd = 150; }    // then dash
+    }
+    // (Paint-Suckers don't attack — their threat is the constant colour drain.)
+
+    // --- horizontal movement (a colourful world calms the crabs slightly) ---
+    const calm = tState() >= 2 ? 0.9 : 1;
+    let vx;
+    if (c.charge > 0) vx = c.dir * (c.kind === 'crate' ? 2.6 : 3.0) * calm;
+    else if (c.windup > 0) vx = 0;                               // freeze during wind-up
+    else vx = (c.vx > 0 ? 1 : -1) * (c.kind === 'sucker' ? 0.4 : 0.7) * calm;
+    c.x += vx;
     let hitWall = false;
-    for (const s of solids) { if (aabb(c, s)) { if (c.vx>0) c.x=s.x-c.w; else c.x=s.x+s.w; hitWall=true; } }
-    if (hitWall || c.x < c.homeMin || c.x > c.homeMax) c.vx *= -1;
+    for (const s of solids) { if (aabb(c, s)) { if (vx>0) c.x=s.x-c.w; else c.x=s.x+s.w; hitWall = true; } }
+    if (c.charge > 0) { if (hitWall) c.charge = 0; }
+    else if (hitWall || c.x < c.homeMin || c.x > c.homeMax) c.vx *= -1;
+
+    // --- gravity ---
+    c.vy = (c.vy || 0) + GRAV; if (c.vy > 12) c.vy = 12;
     c.onG = false; c.y += c.vy;
     for (const s of solids) { if (aabb(c, s)) { if (c.vy>0){c.y=s.y-c.h;c.onG=true;} c.vy=0; } }
 
+    // Claw hit — swipe the crab (armoured crate takes 2)
+    if (atkBox && c.hitFlash <= 0 && aabb(c, atkBox)) { damageCrab(c, p.face); if (c.dead) continue; }
+
     // Player collision
-    if (aabb(p, c)) {
+    if (c.hitFlash <= 0 && aabb(p, c)) {
       const stomped = p.vy > 1.2 && (p.y + p.h) - c.y < 12;
-      if (stomped) {
-        c.dead = true; greyLeft--; p.vy = -6.5; // bounce
-        score += 150;
-        spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c']);
-        updateSaturation();
-      } else if (p.hurt <= 0) {
-        // Get bumped: lose a life, brief invulnerability & knockback
-        lives--; p.hurt = 90; p.vx = p.face * -4; p.vy = -5;
+      if (stomped) { p.vy = -6.5; damageCrab(c, 0); }            // bounce + hurt crab
+      else if (p.hurt <= 0) {
+        lives--; p.hurt = 90; p.vx = (p.x < c.x ? -1 : 1) * 4; p.vy = -5;
+        gainTide(-0.04);                                   // getting hit lets grey creep back
         spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
         if (lives <= 0) return endGame(false);
       }
     }
   }
 
-  // Fruit pickups
+  // Enemy projectiles
+  for (const pr of projectiles) {
+    pr.bob += 0.2; pr.vy += pr.g; pr.x += pr.vx; pr.y += pr.vy; pr.life--;
+    for (const s of solids) { if (pr.x>s.x && pr.x<s.x+s.w && pr.y>s.y && pr.y<s.y+s.h) { pr.life = 0; break; } }
+    const box = { x: pr.x-pr.r, y: pr.y-pr.r, w: pr.r*2, h: pr.r*2 };
+    if (atkBox && pr.life > 0 && aabb(box, atkBox)) { pr.life = 0; spawnBurst(pr.x, pr.y, ['#fff','#ffd23f']); }  // clawed away
+    if (pr.life > 0 && p.hurt <= 0 && aabb(p, box)) {
+      pr.life = 0; lives--; p.hurt = 90; p.vx = (pr.vx>0?1:-1)*3.5; p.vy = -4.5;
+      gainTide(-0.04);
+      spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
+      if (lives <= 0) return endGame(false);
+    }
+  }
+  projectiles = projectiles.filter(pr => pr.life > 0 && pr.y < level.h + 60);
+
+  // ---- Grey Nests: take hits, hatch crabs, drain colour while alive ----
+  for (const n of nests) {
+    if (n.dead) continue;
+    n.pulse += 0.06;
+    if (n.flash > 0) n.flash--;
+    if (atkBox && aabb(n, atkBox)) damageNest(n);                 // claw the nest
+    if (aabb(p, n) && p.vy > 1.2 && (p.y + p.h) - n.y < 12) {     // or stomp it
+      p.vy = -6.5; damageNest(n);
+    }
+    if (--n.spawnT <= 0) {                                        // hatch a grey crab
+      n.spawnT = 480;
+      if (!n.hatch || n.hatch.dead) {
+        n.hatch = makeCrab(n.x - 2, n.y - 10, 'grey');
+        enemies.push(n.hatch);
+        spawnBurst(n.x + n.w/2, n.y, ['#bbb','#888']);
+      }
+    }
+  }
+
+  // ---- Colour Tide: drain pressure vs stabilisation ----
+  if (!boss) {
+    const suckers = enemies.filter(c => !c.dead && c.kind === 'sucker').length;
+    const liveNests = nests.filter(n => !n.dead).length;
+    if (!stabilised) {
+      if (graceT > 0) graceT--;
+      else {
+        const drainMul = 1 - upg.colour * 0.3;                    // Colour Boost slows the drain
+        const drain = (suckers * 0.00045 + liveNests * 0.0003) * drainMul;
+        if (drain > 0) tide = Math.max(0.05, tide - drain);       // never below the floor
+      }
+      // all crabs and nests cleared -> the colour stabilises, tide floods in
+      if (liveNests === 0 && enemies.every(c => c.dead)) {
+        stabilised = true;
+        if (!rushUsed) { rushUsed = true; rush = 600; }           // RAINBOW RUSH!
+      }
+    }
+    if (stabilised) tide = Math.min(1, tide + 0.01);
+  }
+
+  // ---- Rainbow Rush: confetti, sparkle trail, double points ----
+  if (rush > 0) {
+    rush--;
+    if (rush % 9 === 0)
+      spawnBurst(p.x + p.w/2 + (Math.random()-0.5)*90, p.y - 20 - Math.random()*40,
+                 ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#b06bff'], 4);
+    if (rush % 3 === 0)
+      particles.push({ x: p.x + p.w/2 - p.face*8, y: p.y + p.h - 2,
+                       vx: -p.face*0.5, vy: -0.3, life: 26,
+                       col: ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#b06bff'][(Math.random()*5)|0], r: 2.5 });
+  }
+
+  // Hidden fruit materialises once the world turns COLOURFUL
+  if (tState() >= 2) for (const f of fruits) {
+    if (f.hidden && !f.got) { f.hidden = false; spawnBurst(f.x, f.y, ['#fff','#ffd23f','#ff8fa3'], 8); }
+  }
+
+  // Boss fight
+  if (boss && !boss.dead) {
+    const bo = boss;
+    bo.wig += 0.15;
+    if (bo.hurt > 0) bo.hurt--;
+    const spd = 1.0 + (bo.maxhp - bo.hp) * 0.28;   // angrier (lower HP) = faster
+    bo.x += (bo.vx > 0 ? 1 : -1) * spd;
+    let hitw = false;
+    for (const s of solids) { if (aabb(bo, s)) { if (bo.vx>0) bo.x=s.x-bo.w; else bo.x=s.x+bo.w; hitw = true; } }
+    if (bo.x <= 0) { bo.x = 0; hitw = true; }
+    if (bo.x + bo.w >= level.w) { bo.x = level.w - bo.w; hitw = true; }
+    if (hitw) bo.vx *= -1;
+    bo.vy += GRAV; if (bo.vy > 12) bo.vy = 12; bo.y += bo.vy;
+    for (const s of solids) { if (aabb(bo, s)) { if (bo.vy > 0) bo.y = s.y - bo.h; bo.vy = 0; } }
+
+    // Boss attack: fire a fan of spores at Pinny (faster as he's worn down)
+    if (bo.shootCd > 0) bo.shootCd--;
+    if (bo.shootCd <= 0) {
+      const dir = (p.x + p.w/2) < (bo.x + bo.w/2) ? -1 : 1;
+      const cx = bo.x + bo.w/2, cy = bo.y + 8;
+      for (const dv of [-1.2, -0.4, 0.4]) projectiles.push({ x:cx+dir*10, y:cy, vx:dir*1.6, vy:dv, g:0.04, kind:'spore', r:5, life:200, bob:Math.random()*6.28 });
+      bo.shootCd = 150 - (bo.maxhp - bo.hp) * 12;   // 150 → ~90 frames as HP drops
+    }
+
+    if (atkBox && bo.hurt <= 0 && aabb(bo, atkBox)) hitBoss(p.face);   // claw hit
+    if (!boss.dead && aabb(p, bo)) {
+      const stomped = p.vy > 1.2 && (p.y + p.h) - bo.y < 16;
+      if (stomped && bo.hurt <= 0) { p.vy = -8.5; hitBoss(0); }
+      else if (!stomped && bo.hurt <= 0 && p.hurt <= 0) {
+        lives--; p.hurt = 90; p.vx = (p.x < bo.x ? -1 : 1) * 5; p.vy = -5;
+        spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
+        if (lives <= 0) return endGame(false);
+      }
+    }
+    if (!running) return;   // boss defeat may have ended the game
+  }
+
+  // Fruit pickups (hidden fruit is intangible until the world is COLOURFUL)
   for (const f of fruits) {
-    if (f.got) continue;
+    if (f.got || f.hidden) continue;
     f.bob += 0.1;
     if (aabb(p, {x:f.x-f.r, y:f.y-f.r, w:f.r*2, h:f.r*2})) {
-      f.got = true; score += 50;
-      spawnBurst(f.x, f.y, ['#3ddc84','#ffd23f','#fff']);
+      f.got = true; melons++; addScore(25); gainTide(0.02);
+      spawnBurst(f.x, f.y, ['#ff5a5f','#2f9e44','#ff8fa3','#fff']);
+    }
+  }
+
+  // Heart pickups — grant an extra life (up to MAX_LIVES)
+  for (const h of hearts) {
+    if (h.got) continue;
+    h.bob += 0.1;
+    if (aabb(p, {x:h.x-9, y:h.y-9, w:18, h:18})) {
+      h.got = true; addScore(50);
+      if (lives < MAX_LIVES) lives++;
+      spawnBurst(h.x, h.y, ['#ff3b5c','#ff8fa3','#fff']);
     }
   }
 
@@ -349,9 +826,9 @@ function update() {
 
   // Reached the flag → win (only when the world's colour is mostly back)
   if (flag && aabb(p, flag)) {
-    if (greyLeft === 0) return nextLevel();
-    // If crabs remain, nudge: small colourful hint burst, but let them pass to win anyway to keep it kid-easy
-    return nextLevel();
+    if (greyLeft === 0) return finishLevel();
+    // If crabs remain, still let them pass to keep it kid-easy
+    return finishLevel();
   }
 
   // Camera follows player
@@ -366,110 +843,421 @@ function respawn() {
   player.vx = 0; player.vy = 0; player.hurt = 60;
 }
 
-// Global colour saturation reflects how much colour has been rescued.
-function updateSaturation() {
-  const rescued = totalGrey === 0 ? 1 : (totalGrey - greyLeft) / totalGrey;
-  const sat = 0.35 + rescued * 0.65;          // washed-out grey world → 100% full colour
-  const bright = 0.85 + rescued * 0.15;
-  canvas.style.filter = `saturate(${sat}) brightness(${bright})`;
+// Land a hit on the boss (stomp or claw). dir = knockback direction (0 = none).
+function hitBoss(dir) {
+  boss.hp--; boss.hurt = 40; addScore(300);
+  tide = boss.hp <= 0 ? 1 : (boss.maxhp - boss.hp) / boss.maxhp;   // boss stage: tide tracks his HP
+  if (dir) boss.vx = dir > 0 ? Math.abs(boss.vx) : -Math.abs(boss.vx);
+  spawnBurst(boss.x + boss.w/2, boss.y + boss.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c'], 22);
+  if (boss.hp <= 0) {
+    boss.dead = true;
+    spawnBurst(boss.x + boss.w/2, boss.y + boss.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c','#fff'], 44);
+    finishLevel();   // boss is the final stage → triggers the win screen
+  }
+}
+
+// Colour Tide → world saturation, applied every frame with easing so the
+// colour visibly floods in (and seeps out) rather than snapping.
+function applyTide() {
+  tideVis += (tide - tideVis) * 0.04;
+  if (rush > 0) {
+    const pulse = 1.1 + Math.sin(timeT*6) * 0.08;
+    worldCanvas.style.filter = `saturate(${pulse}) brightness(1.06)`;
+  } else {
+    worldCanvas.style.filter = `saturate(${tideVis}) brightness(${0.88 + tideVis*0.12})`;
+  }
 }
 
 /* ---------------- Rendering ---------------- */
 function clamp01(v){return v<0?0:v>1?1:v;}
 
-function draw() {
-  // Sky gradient (colourfulness comes from the CSS saturation filter)
-  const g = ctx.createLinearGradient(0,0,0,VH);
-  g.addColorStop(0, '#8fd3ff'); g.addColorStop(0.6, '#bfeaff'); g.addColorStop(1, '#ffe6b3');
-  ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
+let tideState_ = 0;   // per-frame snapshot for the renderers (tiles react to the tide)
 
-  // Parallax hills
-  drawHills(cam.x*0.3, '#7ec8a0', VH-70);
-  drawHills(cam.x*0.5 + 120, '#5bb98a', VH-45);
+function draw() {
+  applyTide();                                     // Colour Tide -> world saturation (eased)
+  tideState_ = tState();
+
+  // ---------- WORLD LAYER (starts greyscale; colour returns via CSS filter) ----------
+  ctx = worldCtx;
+  const bg = bgArt[levelIndex];
+  if (bg) {                                        // painted Higgsfield backdrop, gentle parallax
+    ctx.imageSmoothingEnabled = false;
+    const bw = Math.ceil(bg.width * (VH / bg.height));
+    let bx = -((cam.x * 0.08) % bw); if (bx > 0) bx -= bw;
+    for (; bx < VW; bx += bw) ctx.drawImage(bg, bx, 0, bw, VH);
+  } else {
+    drawSky();                                     // gradient, stars, sun/moon, clouds
+    drawFar();                                     // far parallax silhouettes per world
+  }
+  drawHills(cam.x*0.3, theme.hills[0], VH-70);
+  drawHills(cam.x*0.5 + 120, theme.hills[1], VH-45);
 
   ctx.save();
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+  drawAmbient();                                   // drifting leaves / bubbles / spores / ash
+  for (const s of solids) drawBlock(s);            // ground / blocks (themed, neighbour-aware)
+  for (const n of nests) if (!n.dead) drawNest(n); // grey nests (drain pressure)
+  for (const c of enemies) if (!c.dead) drawCrab(c); // hybrid crabs (grey until rescued)
+  if (boss && !boss.dead) drawBoss(boss);
+  ctx.restore();
 
-  // Ground / blocks
-  for (const s of solids) drawBlock(s);
-
-  // Flag
+  // ---------- FOREGROUND LAYER (always full colour) ----------
+  // Pinny, the watermelons, the flag and the rescue bursts stay vivid so
+  // they're always visible even while the world is grey.
+  ctx = fgCtx;
+  ctx.clearRect(0,0,VW,VH);
+  ctx.save();
+  ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
   if (flag) drawFlag(flag);
-
-  // Fruit
-  for (const f of fruits) if (!f.got) drawFruit(f);
-
-  // Enemies
-  for (const c of enemies) if (!c.dead) drawGreyCrab(c);
-
-  // Player
+  for (const f of fruits) if (!f.got && !f.hidden) drawFruit(f);
+  for (const h of hearts) if (!h.got) drawHeartPickup(h);
   drawPinny(player);
-
-  // Particles
+  for (const pr of projectiles) drawProjectile(pr);
   for (const pt of particles) {
     ctx.globalAlpha = clamp01(pt.life/30);
     ctx.fillStyle = pt.col;
     ctx.fillRect(pt.x-pt.r/2, pt.y-pt.r/2, pt.r, pt.r);
   }
   ctx.globalAlpha = 1;
-
   ctx.restore();
+
+  // soft vignette for depth (Hollow Knight-style framing), under the HUD
+  const vg = ctx.createRadialGradient(VW/2, VH*0.45, VH*0.5, VW/2, VH*0.55, VH*1.1);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(8,4,18,0.42)');
+  ctx.fillStyle = vg; ctx.fillRect(0,0,VW,VH);
 
   drawHUD();
 }
 
-function drawHills(offset, col, baseY) {
-  ctx.fillStyle = col;
-  ctx.beginPath();
-  ctx.moveTo(0, VH);
-  for (let x=0; x<=VW; x+=40) {
-    const wx = x + (offset % 80);
-    ctx.lineTo(x, baseY - Math.sin((wx)*0.02)*22 - 10);
+// Deterministic per-tile random (stable across frames, so decorations don't flicker).
+function hash2(a, b) {
+  let h = (a*374761393 + b*668265263) | 0;
+  h = ((h ^ (h>>>13)) * 1274126177) | 0;
+  return ((h ^ (h>>>16)) >>> 0) / 4294967296;
+}
+function clampv(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+function drawSky() {
+  const g = ctx.createLinearGradient(0,0,0,VH);
+  g.addColorStop(0, theme.sky[0]); g.addColorStop(0.55, theme.sky[1]); g.addColorStop(1, theme.sky[2]);
+  ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
+
+  if (theme.stars) {                               // twinkling night sky
+    for (let i=0;i<44;i++) {
+      const x = hash2(i,1)*VW, y = hash2(i,2)*130;
+      ctx.globalAlpha = 0.25 + 0.75*Math.abs(Math.sin(timeT*1.5 + i));
+      ctx.fillStyle = '#fff';
+      const s = i%7===0 ? 2 : 1.2;
+      ctx.fillRect(x, y, s, s);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // sun / moon with a soft glow halo
+  const sx = VW*0.78 - cam.x*0.04, sy = theme.sunY || 42;
+  ctx.fillStyle = theme.sun;
+  ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(sx, sy, 24, 0, 6.28); ctx.fill();
+  ctx.globalAlpha = 1;   ctx.beginPath(); ctx.arc(sx, sy, 13, 0, 6.28); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.beginPath(); ctx.arc(sx-4, sy-4, 4, 0, 6.28); ctx.fill();
+
+  drawClouds(0.06, 0.5, 30);
+  drawClouds(0.12, 0.8, 58);
+}
+
+// Banded pixel clouds, drifting slowly with time + camera parallax.
+function drawClouds(par, alpha, y0) {
+  ctx.fillStyle = theme.cloud;
+  ctx.globalAlpha = 0.45*alpha;
+  for (let i=0;i<5;i++) {
+    const w = 40 + hash2(i,7)*44;
+    let x = (hash2(i,3)*(VW+160) - cam.x*par + timeT*(3+i)) % (VW+160) - 80;
+    if (x < -80) x += VW+160;
+    const y = y0 + hash2(i,11)*26;
+    roundRect(x, y, w, 7, 3.5); ctx.fill();
+    roundRect(x+6, y-5, w*0.62, 6, 3); ctx.fill();
+    roundRect(x+10, y+5, w*0.72, 5, 2.5); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Far parallax layer — each world gets its signature silhouette skyline.
+function drawFar() {
+  const off = cam.x*0.16, base = VH-92, span = VW+160;
+  ctx.fillStyle = theme.far;
+  silhouette(off*0.8, base+16, 42);
+
+  const wrap = (x) => (((x % span) + span) % span) - 80;
+  switch (theme.deco) {
+    case 'jungle':                                 // waterfalls pouring off far cliffs
+      for (let i=0;i<3;i++) {
+        const x = wrap(i*200 + 70 - off), top = base - 26 + hash2(i,5)*18;
+        ctx.fillStyle = 'rgba(214,242,255,0.4)'; ctx.fillRect(x, top, 9, VH-top);
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        for (let yy = top + (timeT*46)%16; yy < VH; yy += 16) ctx.fillRect(x+2.5, yy, 4, 7);
+        ctx.fillStyle = theme.far;
+      }
+      break;
+    case 'palm':                                   // leaning palm silhouettes
+      for (let i=0;i<4;i++) palmSil(wrap(i*160 + 40 - off), base+22, 30 + hash2(i,9)*14);
+      break;
+    case 'gear':                                   // great gears slowly turning
+      gearSil(wrap(150 - off), base-10, 26, timeT*0.25);
+      gearSil(wrap(430 - off), base+6, 18, -timeT*0.35);
+      break;
+    case 'crate':                                  // stacked crate mesas
+      for (let i=0;i<3;i++) {
+        const x = wrap(i*210 + 30 - off), s = 18 + hash2(i,4)*8;
+        for (let r=0;r<3;r++) for (let c2=0;c2<3-r;c2++)
+          ctx.fillRect(x + c2*(s+2) + r*(s/2), base+18 - (r+1)*(s+2), s, s);
+      }
+      break;
+    case 'mush':                                   // giant mushrooms with glow spots
+      for (let i=0;i<3;i++) {
+        const x = wrap(i*190 + 80 - off), h = 34 + hash2(i,6)*20;
+        ctx.fillRect(x-3, base+20-h, 7, h);
+        ctx.beginPath(); ctx.arc(x, base+22-h, 20, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(208,164,255,0.5)';
+        ctx.fillRect(x-8, base+16-h, 3, 3); ctx.fillRect(x+6, base+12-h, 2.5, 2.5);
+        ctx.fillStyle = theme.far;
+      }
+      break;
+    case 'ruin': case 'keep':                      // broken towers, battlements, banners
+      for (let i=0;i<4;i++) {
+        const x = wrap(i*170 + 30 - off), h = 40 + hash2(i,8)*26, w = 22;
+        ctx.fillRect(x, base+20-h, w, h);
+        for (let t=0;t<3;t++) ctx.fillRect(x + t*8, base+14-h, 5, 6);
+        if (theme.deco==='keep') {
+          ctx.beginPath(); ctx.moveTo(x-4, base+28-h); ctx.lineTo(x-13, base-h-4); ctx.lineTo(x+3, base+20-h); ctx.closePath(); ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.beginPath(); ctx.moveTo(x+w/2-3, base+22-h); ctx.lineTo(x+w/2+3, base+22-h); ctx.lineTo(x+w/2, base+34-h); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = theme.far;
+      }
+      break;
+  }
+}
+
+function palmSil(x, baseY, h) {
+  ctx.fillRect(x, baseY-h, 3, h);
+  for (let a=0;a<5;a++) {
+    ctx.save(); ctx.translate(x+1.5, baseY-h);
+    ctx.rotate(-Math.PI/2 + (a-2)*0.5);
+    roundRect(0, -2, 15, 4, 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function gearSil(x, y, rad, rot) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  for (let i=0;i<8;i++) { ctx.rotate(Math.PI/4); ctx.fillRect(-3, -rad-5, 6, 7); }
+  ctx.beginPath(); ctx.arc(0, 0, rad, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+
+function silhouette(off, baseY, amp) {
+  ctx.beginPath(); ctx.moveTo(0, VH);
+  for (let x=0; x<=VW; x+=6) {
+    const wx = x + off;
+    ctx.lineTo(x, baseY - (Math.sin(wx*0.012)*0.5+0.5)*amp - Math.sin(wx*0.045)*7);
   }
   ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
 }
 
-function drawBlock(s) {
-  const grassTop = 6;
-  // dirt
-  ctx.fillStyle = '#b5763d';
-  ctx.fillRect(s.x, s.y, s.w, s.h);
-  ctx.fillStyle = '#9c5f2c';
-  ctx.fillRect(s.x, s.y+grassTop, 3, s.h-grassTop);
-  ctx.fillRect(s.x+s.w-3, s.y+grassTop, 3, s.h-grassTop);
-  // grass cap
-  ctx.fillStyle = '#3ddc84';
-  ctx.fillRect(s.x, s.y, s.w, grassTop);
-  ctx.fillStyle = '#2fb96a';
-  ctx.fillRect(s.x, s.y+grassTop, s.w, 2);
-  // little grass blades
-  ctx.fillStyle = '#4dee97';
-  ctx.fillRect(s.x+4, s.y-2, 2, 3);
-  ctx.fillRect(s.x+12, s.y-3, 2, 4);
-  ctx.fillRect(s.x+19, s.y-2, 2, 3);
+// Mid-ground rolling hills with a dithered pixel crest.
+function drawHills(offset, col, baseY) {
+  ctx.fillStyle = col;
+  const crest = [];
+  ctx.beginPath(); ctx.moveTo(0, VH);
+  for (let x=0; x<=VW; x+=4) {
+    const wx = x + offset;
+    const y = baseY - Math.sin(wx*0.02)*22 - 10;
+    crest.push([x, y]); ctx.lineTo(x, y);
+  }
+  ctx.lineTo(VW, VH); ctx.closePath(); ctx.fill();
+  for (const [x,y] of crest) if (hash2(x|0, baseY|0) > 0.6) ctx.fillRect(x, y-2, 2, 2);
 }
 
+// Ambient drifting motes (leaves / bubbles / spores / ash). They live on the
+// world layer so they start grey and glow to life as colour is rescued.
+function drawAmbient() {
+  const a = theme.amb; if (!a || !ambient) return;
+  for (const m of ambient) {
+    m.ph += 0.02;
+    m.x += a.dx + Math.sin(m.ph)*0.15;
+    m.y += a.dy * (0.6 + m.sp);
+    if (m.y > level.h + 20) { m.y = -10; m.x = Math.random()*level.w; }
+    if (m.y < -20) { m.y = level.h + 10; m.x = Math.random()*level.w; }
+    if (m.x > level.w + 20) m.x = -10; else if (m.x < -20) m.x = level.w;
+    const tw = 0.35 + 0.65*Math.abs(Math.sin(m.ph*1.3));
+    ctx.fillStyle = a.col;
+    if (a.glow) { ctx.globalAlpha = 0.2*tw; ctx.beginPath(); ctx.arc(m.x, m.y, 4, 0, 6.28); ctx.fill(); }
+    ctx.globalAlpha = 0.6*tw;
+    ctx.fillRect(m.x-1, m.y-1, 2.5, 2.5);
+  }
+  ctx.globalAlpha = 1;
+}
+
+const FLOWER_COLS = ['#ff6f9d','#ffd23f','#b06bff','#ff8a5f'];
+
+// Neighbour-aware tile renderer: tiles know which sides are exposed, so caps,
+// vines, shading and outlines land only on real edges (16-bit tileset look).
+function drawBlock(s) {
+  const c = s.x / TILE, r = s.y / TILE;
+  const up = solidSet.has(c+','+(r-1)), dn = solidSet.has(c+','+(r+1));
+  const lf = solidSet.has((c-1)+','+r),  rt = solidSet.has((c+1)+','+r);
+  const h1 = hash2(c, r), h2 = hash2(r, c);
+
+  if (theme.block === 'crate') {                   // wooden crates (Box Mountains)
+    ctx.fillStyle = '#a9713c'; ctx.fillRect(s.x, s.y, s.w, s.h);
+    ctx.fillStyle = '#c98d4f'; ctx.fillRect(s.x, s.y, s.w, 3);            // lit top edge
+    ctx.fillStyle = '#8a5a2c'; ctx.fillRect(s.x, s.y+s.h-3, s.w, 3);
+    ctx.strokeStyle = '#6e461f'; ctx.lineWidth = 1;
+    ctx.strokeRect(s.x+1.5, s.y+1.5, s.w-3, s.h-3);
+    ctx.beginPath(); ctx.moveTo(s.x+2, s.y+2); ctx.lineTo(s.x+s.w-2, s.y+s.h-2);
+                     ctx.moveTo(s.x+s.w-2, s.y+2); ctx.lineTo(s.x+2, s.y+s.h-2); ctx.stroke();
+    ctx.fillStyle = '#4d3016';
+    for (const [dx,dy] of [[3,3],[s.w-3,3],[3,s.h-3],[s.w-3,s.h-3]]) ctx.fillRect(s.x+dx-1, s.y+dy-1, 2, 2);
+    if (!up && h1 > 0.6) { ctx.fillStyle = '#8fae4a'; ctx.fillRect(s.x+4+h2*10, s.y-3, 2, 3); }
+  } else if (theme.block === 'stone') {            // mossy brick stone (Coral/Marsh/Wasteland/Keep)
+    ctx.fillStyle = '#868c96'; ctx.fillRect(s.x, s.y, s.w, s.h);
+    const offx = (r % 2) * 12;                     // running-bond brick joints
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(s.x, s.y+11, s.w, 1.5);
+    ctx.fillRect(s.x + ((offx+6) % 24), s.y, 1.5, 12);
+    ctx.fillRect(s.x + ((offx+18) % 24), s.y+12, 1.5, 12);
+    ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(s.x, s.y, s.w, 2);
+    if (h1 > 0.55) { ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(s.x+4+h2*12, s.y+5+h1*10, 3, 2); }
+    if (!up) {                                     // moss cap with drips + rim light
+      ctx.fillStyle = theme.moss; ctx.fillRect(s.x, s.y, s.w, 5);
+      ctx.fillRect(s.x+3+h1*6, s.y+5, 2, 3+h2*4);
+      ctx.fillRect(s.x+14+h2*5, s.y+5, 2, 2+h1*5);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(s.x, s.y, s.w, 1.2);
+      // life returns with the tide: flowers from FADED, theme props grow too
+      if (tideState_ >= 1 && h1 > 0.7) { ctx.fillStyle = FLOWER_COLS[(h2*4)|0]; ctx.fillRect(s.x+5+h2*12, s.y-3, 2.5, 2.5); }
+      if (tideState_ >= 1 && theme.deco === 'gear' && h2 > 0.72) {   // coral fans (Coral Gear Coast)
+        const fx = s.x + 4 + h1*14;
+        ctx.fillStyle = ['#ff7a9d','#ff9d5f','#c86bff'][(h1*3)|0];
+        ctx.beginPath(); ctx.arc(fx, s.y-1, 4, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillRect(fx-2.5, s.y-3.5, 1, 3); ctx.fillRect(fx+0.5, s.y-4.5, 1, 4); ctx.fillRect(fx+2, s.y-3, 1, 2.5);
+      }
+      if (tideState_ >= 1 && theme.deco === 'mush' && h2 > 0.75) {   // tiny mushrooms (Mushroom Marsh)
+        const mx = s.x + 5 + h1*12;
+        ctx.fillStyle = '#e8e0d0'; ctx.fillRect(mx, s.y-4, 2, 4);
+        ctx.fillStyle = '#d63a5f'; ctx.beginPath(); ctx.arc(mx+1, s.y-4, 3.2, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffd9e2'; ctx.fillRect(mx-0.5, s.y-6, 1.2, 1.2);
+      }
+    }
+    if (!up && !lf && h2 > 0.5) { ctx.fillStyle = theme.moss; ctx.fillRect(s.x, s.y+5, 2, 6+h1*8); }
+    if (!up && !rt && h1 > 0.5) { ctx.fillStyle = theme.moss; ctx.fillRect(s.x+s.w-2, s.y+5, 2, 6+h2*8); }
+  } else {                                         // grassy dirt (Emerald Falls / Palm Cove)
+    const grassTop = 6;
+    ctx.fillStyle = '#b5763d'; ctx.fillRect(s.x, s.y, s.w, s.h);
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';            // buried pebbles
+    if (h1 > 0.35) ctx.fillRect(s.x+3+h2*14, s.y+10+h1*9, 3, 2);
+    if (h2 > 0.55) ctx.fillRect(s.x+5+h1*12, s.y+15+h2*5, 2, 2);
+    ctx.fillStyle = '#9c5f2c';
+    if (!lf) ctx.fillRect(s.x, s.y+grassTop, 3, s.h-grassTop);
+    if (!rt) ctx.fillRect(s.x+s.w-3, s.y+grassTop, 3, s.h-grassTop);
+    if (!up) {
+      ctx.fillStyle = '#3ddc84'; ctx.fillRect(s.x, s.y, s.w, grassTop);
+      ctx.fillStyle = '#2fb96a'; ctx.fillRect(s.x, s.y+grassTop, s.w, 2);
+      ctx.fillStyle = '#7ff2b2'; ctx.fillRect(s.x, s.y, s.w, 1.5);        // sun-lit rim
+      ctx.fillStyle = '#4dee97';                                          // grass tufts
+      ctx.fillRect(s.x+2+h1*6, s.y-2, 2, 3);
+      ctx.fillRect(s.x+11+h2*4, s.y-3, 2, 4);
+      ctx.fillRect(s.x+18+h1*3, s.y-2, 2, 3);
+      if (tideState_ >= 1 && h1 > 0.62) {          // wildflowers bloom from FADED onward
+        const fx = s.x + 4 + h2*14;
+        ctx.fillStyle = '#2fb96a'; ctx.fillRect(fx+1, s.y-4, 1.5, 4);
+        ctx.fillStyle = FLOWER_COLS[(h2*4)|0]; ctx.fillRect(fx, s.y-6, 3.5, 3.5);
+        ctx.fillStyle = '#fff2b0'; ctx.fillRect(fx+1.2, s.y-4.8, 1.2, 1.2);
+        if (tideState_ >= 2 && h2 > 0.5) {          // butterflies at COLOURFUL
+          const bx = fx + Math.sin(timeT*2 + h1*9)*6, by = s.y - 10 + Math.cos(timeT*2.6 + h2*7)*3;
+          ctx.fillStyle = FLOWER_COLS[(h1*4)|0];
+          ctx.fillRect(bx-1.5, by, 1.5, 1.5); ctx.fillRect(bx+0.5, by, 1.5, 1.5);
+        }
+      }
+      if (!lf && h2 > 0.5) {                                              // hanging vines
+        ctx.fillStyle = '#2fb96a'; ctx.fillRect(s.x, s.y+grassTop, 2, 7+h1*9);
+        ctx.fillRect(s.x-1, s.y+grassTop+5+h1*6, 3, 2);
+      }
+      if (!rt && h1 > 0.5) {
+        ctx.fillStyle = '#2fb96a'; ctx.fillRect(s.x+s.w-2, s.y+grassTop, 2, 7+h2*9);
+        ctx.fillRect(s.x+s.w-3, s.y+grassTop+4+h2*6, 3, 2);
+      }
+    }
+  }
+
+  // dark outline on every exposed edge — reads as hand-drawn tile borders
+  ctx.fillStyle = 'rgba(20,12,8,0.35)';
+  if (!up) ctx.fillRect(s.x, s.y, s.w, 1.5);
+  if (!dn) ctx.fillRect(s.x, s.y+s.h-1.5, s.w, 1.5);
+  if (!lf) ctx.fillRect(s.x, s.y, 1.5, s.h);
+  if (!rt) ctx.fillRect(s.x+s.w-1.5, s.y, 1.5, s.h);
+}
+
+// Watermelon slice — the collectible ("colour is life!").
 function drawFruit(f) {
   const y = f.y + Math.sin(f.bob)*3;
-  // sparkle gem-style fruit
-  ctx.fillStyle = '#ffd23f';
-  ctx.beginPath(); ctx.arc(f.x, y, f.r, 0, 6.28); ctx.fill();
-  ctx.fillStyle = '#ff9d3c';
-  ctx.beginPath(); ctx.arc(f.x, y+1, f.r*0.55, 0, 6.28); ctx.fill();
-  ctx.fillStyle = '#fff6c9';
-  ctx.beginPath(); ctx.arc(f.x-2, y-2, 1.6, 0, 6.28); ctx.fill();
+  ctx.save(); ctx.translate(f.x, y); ctx.rotate(Math.sin(f.bob*0.5)*0.15);
+  ctx.fillStyle = 'rgba(255,120,140,0.18)';                                                               // soft glow
+  ctx.beginPath(); ctx.arc(0, -1, 10, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#1d7a33'; ctx.beginPath(); ctx.arc(0,0.6,8.7,Math.PI,0); ctx.closePath(); ctx.fill();  // dark outline rind
+  ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.arc(0,0,8,Math.PI,0); ctx.closePath(); ctx.fill();      // rind
+  ctx.fillStyle = '#8ce99a'; ctx.beginPath(); ctx.arc(0,-0.5,6.6,Math.PI,0); ctx.closePath(); ctx.fill(); // light rind
+  ctx.fillStyle = '#ff5a5f'; ctx.beginPath(); ctx.arc(0,-1,5.2,Math.PI,0); ctx.closePath(); ctx.fill();   // flesh
+  ctx.fillStyle = '#3a2020';                                                                              // seeds
+  ctx.fillRect(-3,-3.4,1,1.6); ctx.fillRect(2,-3.4,1,1.6); ctx.fillRect(-0.5,-2,1,1.6);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fillRect(-3.5,-4.6,2,1);                                    // shine
+  if (Math.sin(f.bob*2) > 0.6) { ctx.fillStyle = '#fff'; ctx.fillRect(5, -6, 1.6, 1.6); }                 // twinkle
+  ctx.restore();
 }
 
+// Crab attack projectiles.
+function drawProjectile(pr) {
+  const wob = Math.sin(pr.bob) * 1.2;
+  if (pr.kind === 'pinch') {
+    ctx.fillStyle = '#ff7a3c'; ctx.beginPath(); ctx.arc(pr.x, pr.y, 4, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(pr.x, pr.y, 1.8, 0, 6.28); ctx.fill();
+  } else if (pr.kind === 'pollen') {
+    ctx.fillStyle = 'rgba(255,143,206,0.4)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 6, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#ff8fce'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 4, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 1.6, 0, 6.28); ctx.fill();
+  } else { // spore
+    ctx.fillStyle = 'rgba(176,107,255,0.4)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, pr.r+3, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#b06bff'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, pr.r, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#e6ccff'; ctx.beginPath(); ctx.arc(pr.x-1.2, pr.y-1.2+wob, 1.3, 0, 6.28); ctx.fill();
+  }
+}
+
+// Heart pickup — a floating extra life.
+function drawHeartPickup(h) {
+  const y = h.y + Math.sin(h.bob) * 3;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,80,110,0.22)';                 // soft glow
+  ctx.beginPath(); ctx.arc(h.x, y + 2, 10, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#c9203f'; heart(h.x, y - 4.5, 6.6);      // dark base for outline
+  ctx.fillStyle = '#ff3b5c'; heart(h.x, y - 4, 6);          // heart body
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';                  // shine
+  ctx.beginPath(); ctx.arc(h.x - 2, y - 1, 1.6, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+
+// Goal flag with a waving striped pennant.
 function drawFlag(fl) {
-  ctx.fillStyle = '#5a3a22'; ctx.fillRect(fl.x+2, fl.y, 3, fl.h);
-  ctx.fillStyle = '#ff5f8d';
-  ctx.beginPath();
-  ctx.moveTo(fl.x+5, fl.y+2);
-  ctx.lineTo(fl.x+22, fl.y+8);
-  ctx.lineTo(fl.x+5, fl.y+14);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#ffd23f';
-  ctx.fillRect(fl.x, fl.y+fl.h-3, 8, 3);
+  const t = timeT*4;
+  ctx.fillStyle = '#3a2312'; ctx.fillRect(fl.x+1, fl.y, 4, fl.h);         // pole
+  ctx.fillStyle = '#6b4423'; ctx.fillRect(fl.x+2, fl.y, 1.5, fl.h);       // pole highlight
+  ctx.fillStyle = '#ffd23f';                                              // gold finial
+  ctx.beginPath(); ctx.arc(fl.x+3, fl.y-2, 3, 0, 6.28); ctx.fill();
+  for (let i=0;i<14;i++) {                                                // waving pennant
+    const wob = Math.sin(t + i*0.45)*2;
+    ctx.fillStyle = i%4<2 ? '#ff5f8d' : '#ffd23f';
+    ctx.fillRect(fl.x+5+i*1.6, fl.y+3 + wob + i*0.12, 2.1, Math.max(3, 12 - i*0.55));
+  }
+  ctx.fillStyle = '#5a4a55'; ctx.fillRect(fl.x-3, fl.y+fl.h-3, 12, 3);    // base
 }
 
 // --- Pinny, the one-eyed pineapple crab ---
@@ -479,9 +1267,34 @@ function drawPinny(p) {
   if (flick) ctx.globalAlpha = 0.4;
   const legLift = Math.sin(p.walk)* (p.onGround?2:0);
 
+  // soft contact shadow
+  if (p.onGround) {
+    ctx.fillStyle = 'rgba(10,5,20,0.28)';
+    ctx.beginPath(); ctx.ellipse(cx, top + 20, 10, 2.6, 0, 0, 6.28); ctx.fill();
+  }
+
+  // squash & stretch: stretch while leaping, squash on landing (anchored at feet)
+  let sy = 1;
+  if (!p.onGround) sy = clampv(1 - p.vy*0.018, 0.86, 1.14);
+  else if (p.squash > 0) sy = 0.8 + (8 - p.squash)*0.025;
+  const sx = 2 - sy;
+
   ctx.save();
-  ctx.translate(cx, top);
-  if (p.face < 0) ctx.scale(-1,1);
+  ctx.translate(cx, top + 19);
+  ctx.scale(p.face < 0 ? -sx : sx, sy);
+  ctx.translate(0, -19);
+
+  // Generated Pinny sprite (from the creator's pineapple-watermelon crab);
+  // falls back to the code-drawn crab below if the art isn't loaded.
+  if (sprites.pinny) {
+    ctx.imageSmoothingEnabled = false;
+    const sh = 30, sw = sh * sprites.pinny.width / sprites.pinny.height;
+    ctx.drawImage(sprites.pinny, -sw/2, 20 - sh, sw, sh);
+    drawClawSwipe(p);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    return;
+  }
 
   // legs
   ctx.strokeStyle = '#c9791f'; ctx.lineWidth = 2;
@@ -497,9 +1310,24 @@ function drawPinny(p) {
   ctx.fillStyle = '#e85f22';
   ctx.fillRect(-12, 7, 2, 3); ctx.fillRect(9, 6, 2, 3);
 
-  // pineapple body (rounded)
+  // watermelon-slice "wings" either side of the head
+  for (const sgn of [-1, 1]) {
+    ctx.save(); ctx.translate(sgn*11, 8); ctx.rotate(sgn*0.55);
+    ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.arc(0,0,6,Math.PI,0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff5a5f'; ctx.beginPath(); ctx.arc(0,-0.4,4.4,Math.PI,0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3a2020'; ctx.fillRect(-1.6,-2,0.9,1.2); ctx.fillRect(0.7,-2,0.9,1.2);
+    ctx.restore();
+  }
+
+  // pineapple body (rounded, shaded, outlined)
   ctx.fillStyle = '#ffc93c';
   roundRect(-9, 2, 18, 15, 6); ctx.fill();
+  ctx.fillStyle = 'rgba(190,115,20,0.30)';
+  roundRect(-9, 11, 18, 6, 5); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  roundRect(-7, 3, 6, 4, 3); ctx.fill();
+  ctx.strokeStyle = '#a86c12'; ctx.lineWidth = 1.2;
+  roundRect(-9, 2, 18, 15, 6); ctx.stroke();
   // pineapple diamond texture
   ctx.strokeStyle = '#e0a520'; ctx.lineWidth = 1;
   for (let yy=4; yy<15; yy+=4) {
@@ -530,52 +1358,248 @@ function drawPinny(p) {
     ctx.strokeStyle='#22203a'; ctx.lineWidth=1.4;
     ctx.beginPath(); ctx.moveTo(-1,8); ctx.lineTo(5,8); ctx.stroke();
   }
-  // little smile
-  ctx.strokeStyle = '#b5651d'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.arc(0, 13, 2.2, 0.1, Math.PI-0.1); ctx.stroke();
+  // big toothy grin
+  ctx.fillStyle = '#7a3b1a';
+  ctx.beginPath(); ctx.arc(1, 12.5, 3.2, 0.05, Math.PI-0.05); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ff6f8a';                                   // tongue
+  ctx.beginPath(); ctx.arc(1, 13.6, 1.5, 0, Math.PI); ctx.fill();
+  ctx.fillStyle = '#fff';                                      // teeth
+  ctx.fillRect(-1.4, 11.4, 4.8, 1.3);
+
+  drawClawSwipe(p);
 
   ctx.restore();
   ctx.globalAlpha = 1;
 }
 
-// --- Grey crab enemy (colour thief) ---
-function drawGreyCrab(c) {
-  const wig = Math.sin(c.wig)*1.2;
-  ctx.save();
-  ctx.translate(c.x + c.w/2, c.y);
+// Claw swipe overlay (drawn in Pinny's local space; +x is "in front" after face flip).
+function drawClawSwipe(p) {
+  if (p.atk <= 0) return;
+  const prog = (14 - p.atk) / 14;                            // 0 → 1 over the swing
+  const reach = Math.sin(Math.min(1, prog*1.25) * Math.PI) * 12;
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;   // slash arc
+  ctx.beginPath(); ctx.arc(11, 9, 9 + reach*0.4, -0.9, 0.9); ctx.stroke();
+  ctx.strokeStyle = '#e85f22'; ctx.lineWidth = 3;                  // outstretched arm
+  ctx.beginPath(); ctx.moveTo(7, 9); ctx.lineTo(12 + reach, 9); ctx.stroke();
+  ctx.fillStyle = '#ff7a3c';                                       // big pincer
+  ctx.beginPath(); ctx.arc(14 + reach, 9, 5, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#e85f22'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(14 + reach, 6); ctx.lineTo(20 + reach, 4);
+  ctx.moveTo(14 + reach, 12); ctx.lineTo(20 + reach, 14);
+  ctx.stroke();
+}
 
-  // faint grey "drain" aura
-  ctx.fillStyle = 'rgba(120,120,120,0.18)';
-  ctx.beginPath(); ctx.arc(0, 8, 16, 0, 6.28); ctx.fill();
+// --- Hybrid crab enemies ---
+// Every crab shares the same grumpy body; `kind` swaps the palette and adds
+// a topper (flowers, mushroom cap, wooden crate). They all render in their
+// own colours but the world layer keeps them grey until the colour is rescued.
+const CRAB_PALETTE = {
+  grey:    { shell:'#9a9a9a', shell2:'#7d7d7d', leg:'#666',    claw:'#8a8a8a', line:'#4d4d4d' },
+  flower:  { shell:'#6fae4a', shell2:'#548a36', leg:'#4a7a34', claw:'#7dbe58', line:'#3c6b2a' },
+  mushroom:{ shell:'#c9a06a', shell2:'#a67f49', leg:'#7a5a34', claw:'#b98f5a', line:'#6a4a2a' },
+  crate:   { shell:'#a9713c', shell2:'#875a2c', leg:'#6a4420', claw:'#b5813c', line:'#5a3a1a' },
+  red:     { shell:'#e0592f', shell2:'#b5401f', leg:'#8a3018', claw:'#ff7a3c', line:'#7a2a12' },
+  sucker:  { shell:'#a89ab0', shell2:'#877a92', leg:'#6a5f75', claw:'#9a8ca6', line:'#4d4458' },
+};
+
+function drawCrab(c) {
+  const wig = Math.sin(c.wig)*1.2;
+  const kind = c.kind || 'grey';
+  const P = CRAB_PALETTE[kind] || CRAB_PALETTE.grey;
+  const look = (c.vx > 0 ? 0.6 : -0.6);
+  const jit = (c.windup > 0) ? Math.sin(c.wig*4) * 1.6 : 0;   // shake while winding up to charge
+  ctx.save();
+  ctx.translate(c.x + c.w/2 + jit, c.y);
+
+  // contact shadow + faint "drain" aura
+  ctx.fillStyle = 'rgba(10,5,20,0.25)';
+  ctx.beginPath(); ctx.ellipse(0, 16, 10, 2.4, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = 'rgba(120,120,120,0.15)';
+  ctx.beginPath(); ctx.arc(0, 8, 15, 0, 6.28); ctx.fill();
+
+  // Paint-Sucker: obvious pulsing drain aura + colour streaks being inhaled
+  if (kind === 'sucker') {
+    const pu = 1 + Math.sin(c.wig*1.5)*0.15;
+    ctx.strokeStyle = 'rgba(150,140,160,0.5)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 8, 18*pu, 0, 6.28); ctx.stroke();
+    ctx.strokeStyle = 'rgba(150,140,160,0.25)';
+    ctx.beginPath(); ctx.arc(0, 8, 24*pu, 0, 6.28); ctx.stroke();
+    for (let i=0;i<4;i++) {                              // streaks spiralling inward
+      const a = c.wig*0.8 + i*1.57, d = 22 - ((c.wig*10 + i*6) % 16);
+      ctx.fillStyle = ['#ff8fa3','#ffd97a','#8fe0b0','#9fc8ff'][i];
+      ctx.globalAlpha = 0.5;
+      ctx.fillRect(Math.cos(a)*d - 1, 8 + Math.sin(a)*d*0.6 - 1, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Generated crab sprite (grey / paint-sucker / vine crab) with code fallback
+  if (sprites[kind]) {
+    ctx.imageSmoothingEnabled = false;
+    const spr = sprites[kind];
+    const sh = 22, sw = sh * spr.width / spr.height;
+    ctx.drawImage(spr, -sw/2, 16 - sh, sw, sh);
+    if (c.hitFlash > 0 && Math.floor(c.hitFlash/3) % 2 === 0) {   // armour flash
+      ctx.globalAlpha = 0.5; ctx.fillStyle = '#fff';
+      ctx.fillRect(-sw/2, 16 - sh, sw, sh); ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    return;
+  }
 
   // legs
-  ctx.strokeStyle = '#666'; ctx.lineWidth = 2;
+  ctx.strokeStyle = P.leg; ctx.lineWidth = 2;
   for (const dx of [-7,-3]) {
     ctx.beginPath(); ctx.moveTo(dx,10); ctx.lineTo(dx-3,15+wig); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-dx,10); ctx.lineTo(-dx+3,15-wig); ctx.stroke();
   }
   // claws
-  ctx.fillStyle = '#8a8a8a';
+  ctx.fillStyle = P.claw;
   ctx.beginPath(); ctx.arc(-10,7,3.5,0,6.28); ctx.fill();
   ctx.beginPath(); ctx.arc(10,7,3.5,0,6.28); ctx.fill();
-  // shell
-  ctx.fillStyle = '#9a9a9a';
-  roundRect(-8, 1, 16, 11, 6); ctx.fill();
-  ctx.fillStyle = '#7d7d7d';
-  roundRect(-8, 7, 16, 5, 4); ctx.fill();
+
+  // shell (box for crate crabs, rounded otherwise)
+  if (kind === 'crate') {
+    ctx.fillStyle = P.shell; ctx.fillRect(-8, 0, 16, 12);
+    ctx.strokeStyle = P.shell2; ctx.lineWidth = 1.2; ctx.strokeRect(-7.3, 0.6, 14.6, 10.8);
+    ctx.beginPath(); ctx.moveTo(-8,4); ctx.lineTo(8,4); ctx.moveTo(-8,8); ctx.lineTo(8,8); ctx.stroke();
+  } else {
+    ctx.fillStyle = P.shell;  roundRect(-8, 1, 16, 11, 6); ctx.fill();
+    ctx.fillStyle = P.shell2; roundRect(-8, 7, 16, 5, 4);  ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; roundRect(-6, 2, 6, 3, 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(22,20,26,0.5)'; ctx.lineWidth = 1;
+    roundRect(-8, 1, 16, 11, 6); ctx.stroke();
+  }
+
+  // topper decorations (drawn above the eyes so nothing is hidden)
+  if (kind === 'flower') {
+    for (const fx of [-4.5, 4.5]) {
+      ctx.fillStyle = '#ff6f9d';
+      for (let a=0;a<5;a++){ const ang=a/5*6.28; ctx.beginPath(); ctx.arc(fx+Math.cos(ang)*2, -6+Math.sin(ang)*2, 1.4, 0, 6.28); ctx.fill(); }
+      ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(fx, -6, 1.3, 0, 6.28); ctx.fill();
+    }
+  } else if (kind === 'mushroom') {
+    ctx.fillStyle = '#d63a3a'; ctx.beginPath(); ctx.arc(0, -5, 8, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-3,-7,1.2,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(3,-8,1.1,0,6.28); ctx.fill();
+    ctx.beginPath(); ctx.arc(0,-9.5,1,0,6.28); ctx.fill();
+  }
+
   // eyes on stalks
-  ctx.strokeStyle='#6b6b6b'; ctx.lineWidth=1.5;
+  ctx.strokeStyle = P.shell2; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(-3,2); ctx.lineTo(-3,-2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(3,2); ctx.lineTo(3,-2); ctx.stroke();
-  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.moveTo(3,2);  ctx.lineTo(3,-2);  ctx.stroke();
+  ctx.fillStyle = '#fff';
   ctx.beginPath(); ctx.arc(-3,-3,2,0,6.28); ctx.fill();
   ctx.beginPath(); ctx.arc(3,-3,2,0,6.28); ctx.fill();
-  ctx.fillStyle='#222';
-  ctx.beginPath(); ctx.arc(-3+(c.vx>0?0.6:-0.6),-3,1,0,6.28); ctx.fill();
-  ctx.beginPath(); ctx.arc(3+(c.vx>0?0.6:-0.6),-3,1,0,6.28); ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(-3+look,-3,1,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(3+look,-3,1,0,6.28); ctx.fill();
   // grumpy mouth
-  ctx.strokeStyle='#4d4d4d'; ctx.lineWidth=1.2;
+  ctx.strokeStyle = P.line; ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.arc(0,10,2.2,Math.PI+0.1,-0.1); ctx.stroke();
+
+  // white flash when hit but not yet defeated (armoured crate)
+  if (c.hitFlash > 0 && Math.floor(c.hitFlash/3) % 2 === 0) {
+    ctx.globalAlpha = 0.55; ctx.fillStyle = '#fff';
+    roundRect(-9, -1, 18, 15, 6); ctx.fill(); ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
+
+// --- Grey Nest: a spiky drain-mound. Cracks appear as it takes hits. ---
+function drawNest(n) {
+  const cx = n.x + n.w/2, base = n.y + n.h;
+  const pu = 1 + Math.sin(n.pulse)*0.12;
+  const flash = n.flash > 0 && (Math.floor(n.flash/3) % 2 === 0);
+  ctx.save();
+
+  // drain aura + rising grey wisps
+  ctx.strokeStyle = 'rgba(130,130,140,0.4)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(cx, n.y + 8, 17*pu, 0, 6.28); ctx.stroke();
+  ctx.fillStyle = 'rgba(160,160,170,0.5)';
+  for (let i=0;i<3;i++) {
+    const wy = base - ((n.pulse*14 + i*9) % 26);
+    ctx.fillRect(cx - 6 + i*5, wy, 2, 2);
+  }
+
+  // mound body
+  ctx.fillStyle = flash ? '#fff' : '#75757f';
+  ctx.beginPath(); ctx.moveTo(cx - 11, base);
+  ctx.quadraticCurveTo(cx - 11, n.y - 2, cx, n.y - 3);
+  ctx.quadraticCurveTo(cx + 11, n.y - 2, cx + 11, base);
+  ctx.closePath(); ctx.fill();
+  // spikes
+  ctx.fillStyle = flash ? '#eee' : '#5d5d66';
+  for (const [dx, dy, s] of [[-7,-1,4],[0,-5,5],[7,-1,4]]) {
+    ctx.beginPath(); ctx.moveTo(cx+dx-s*0.6, n.y+dy+4); ctx.lineTo(cx+dx, n.y+dy-s); ctx.lineTo(cx+dx+s*0.6, n.y+dy+4);
+    ctx.closePath(); ctx.fill();
+  }
+  // angry glow core + cracks per hit taken
+  ctx.fillStyle = '#3a3a44';
+  ctx.beginPath(); ctx.arc(cx, n.y + 8, 4.5, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#c9c9d4';
+  ctx.beginPath(); ctx.arc(cx, n.y + 8, 2, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#2e2e36'; ctx.lineWidth = 1.2;
+  if (n.hp <= 2) { ctx.beginPath(); ctx.moveTo(cx-8, n.y+3); ctx.lineTo(cx-3, n.y+9); ctx.lineTo(cx-6, n.y+13); ctx.stroke(); }
+  if (n.hp <= 1) { ctx.beginPath(); ctx.moveTo(cx+8, n.y+2); ctx.lineTo(cx+3, n.y+8); ctx.lineTo(cx+6, n.y+13); ctx.stroke(); }
+  // outline
+  ctx.strokeStyle = 'rgba(20,18,26,0.55)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx - 11, base);
+  ctx.quadraticCurveTo(cx - 11, n.y - 2, cx, n.y - 3);
+  ctx.quadraticCurveTo(cx + 11, n.y - 2, cx + 11, base);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// --- General Ashclaw, the boss: a big spiky crab. ---
+function drawBoss(bo) {
+  const flash = bo.hurt > 0 && (Math.floor(bo.hurt/4) % 2 === 0);
+  const wig = Math.sin(bo.wig) * 2;
+  const look = (bo.vx > 0 ? 0.9 : -0.9);
+  ctx.save();
+  ctx.translate(bo.x + bo.w/2, bo.y);
+
+  // contact shadow
+  ctx.fillStyle = 'rgba(10,5,20,0.3)';
+  ctx.beginPath(); ctx.ellipse(0, 31, 22, 4, 0, 0, 6.28); ctx.fill();
+
+  // legs
+  ctx.strokeStyle = '#33303a'; ctx.lineWidth = 3;
+  for (const dx of [-16,-9,9,16]) { ctx.beginPath(); ctx.moveTo(dx*0.7, 26); ctx.lineTo(dx, 30 + ((dx%2)?wig:-wig)); ctx.stroke(); }
+  // big claws
+  ctx.fillStyle = flash ? '#fff' : '#5a4a55';
+  ctx.beginPath(); ctx.arc(-20, 20, 8, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(20, 20, 8, 0, 6.28); ctx.fill();
+  ctx.fillStyle = flash ? '#fff' : '#46384a';
+  ctx.fillRect(-26, 15, 6, 5); ctx.fillRect(20, 15, 6, 5);
+  // horns
+  ctx.fillStyle = flash ? '#fff' : '#241f2a';
+  ctx.beginPath(); ctx.moveTo(-14,3); ctx.lineTo(-23,-13); ctx.lineTo(-7,-2); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(14,3);  ctx.lineTo(23,-13);  ctx.lineTo(7,-2);  ctx.closePath(); ctx.fill();
+  // shell
+  ctx.fillStyle = flash ? '#fff' : '#4a4048'; roundRect(-20, 2, 40, 24, 10); ctx.fill();
+  ctx.fillStyle = flash ? '#eee' : '#372f36'; roundRect(-20, 14, 40, 12, 8); ctx.fill();
+  ctx.strokeStyle = 'rgba(12,10,16,0.6)'; ctx.lineWidth = 1.5;
+  roundRect(-20, 2, 40, 24, 10); ctx.stroke();
+  // spikes along the top
+  ctx.fillStyle = flash ? '#fff' : '#5a5058';
+  for (const sx of [-9,0,9]) { ctx.beginPath(); ctx.moveTo(sx-3,3); ctx.lineTo(sx,-7); ctx.lineTo(sx+3,3); ctx.closePath(); ctx.fill(); }
+  // angry glowing eyes
+  ctx.fillStyle = '#ffd23f';
+  ctx.beginPath(); ctx.arc(-7,10,3.4,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(7,10,3.4,0,6.28); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(-7+look,10,1.6,0,6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(7+look,10,1.6,0,6.28); ctx.fill();
+  // brows + frown
+  ctx.strokeStyle = '#17141a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-12,6); ctx.lineTo(-4,9); ctx.moveTo(12,6); ctx.lineTo(4,9); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,21,4,Math.PI+0.25,-0.25); ctx.stroke();
 
   ctx.restore();
 }
@@ -591,28 +1615,107 @@ function roundRect(x,y,w,h,r) {
 }
 
 function drawHUD() {
-  // Colour meter (top center) — how much of the world's colour is rescued
-  const rescued = totalGrey===0 ? 1 : (totalGrey-greyLeft)/totalGrey;
-  const barW = 120, barX = VW/2 - barW/2, barY = 10;
-  ctx.fillStyle = 'rgba(0,0,0,0.28)'; roundRect(barX-3, barY-3, barW+6, 14, 6); ctx.fill();
-  ctx.fillStyle = '#555'; roundRect(barX, barY, barW, 8, 4); ctx.fill();
-  const grd = ctx.createLinearGradient(barX,0,barX+barW,0);
-  grd.addColorStop(0,'#ff5f8d'); grd.addColorStop(.5,'#ffd23f'); grd.addColorStop(1,'#3ddc84');
-  ctx.fillStyle = grd; roundRect(barX, barY, Math.max(4,barW*rescued), 8, 4); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 8px system-ui'; ctx.textAlign='center';
-  ctx.fillText('COLOUR', VW/2, barY+18);
+  // dark plaques behind the HUD clusters (readability over any backdrop)
+  ctx.fillStyle = 'rgba(24,12,28,0.38)';
+  roundRect(4, 4, 116, 32, 8); ctx.fill();
+  roundRect(VW-76, 4, 72, 32, 8); ctx.fill();
 
-  // Lives (hearts) top-left
-  ctx.textAlign = 'left';
-  for (let i=0;i<lives;i++) { ctx.fillStyle = '#ff5f8d'; heart(10 + i*16, 12, 5); }
+  // ---- COLOUR TIDE meter (top centre): fill, state ticks, state name ----
+  const st = tState();
+  const barW = 108, barX = VW/2 - barW/2, barY = 9;
+  ctx.fillStyle = 'rgba(0,0,0,0.32)'; roundRect(barX-3, barY-3, barW+6, 12, 6); ctx.fill();
+  ctx.fillStyle = '#555'; roundRect(barX, barY, barW, 6, 3); ctx.fill();
+  if (st === 3) {                                  // rainbow-animated fill during the rush
+    const cyc = (timeT*1.5) % 1;
+    const grd = ctx.createLinearGradient(barX,0,barX+barW,0);
+    for (let i=0;i<=4;i++) grd.addColorStop(i/4, `hsl(${((cyc + i/4)%1)*360},90%,62%)`);
+    ctx.fillStyle = grd; roundRect(barX, barY, barW, 6, 3); ctx.fill();
+  } else {
+    const grd = ctx.createLinearGradient(barX,0,barX+barW,0);
+    grd.addColorStop(0,'#ff5f8d'); grd.addColorStop(.5,'#ffd23f'); grd.addColorStop(1,'#3ddc84');
+    ctx.fillStyle = grd; roundRect(barX, barY, Math.max(4, barW*tideVis), 6, 3); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';        // state-threshold tick marks
+  ctx.fillRect(barX + barW*0.25 - 0.5, barY-1, 1, 8);
+  ctx.fillRect(barX + barW*0.55 - 0.5, barY-1, 1, 8);
+  ctx.font = 'bold 7px system-ui'; ctx.textAlign = 'center';
+  ctx.fillStyle = st === 3 ? `hsl(${(timeT*240)%360},95%,72%)` : TIDE_COLS[st];
+  ctx.fillText('COLOUR TIDE: ' + TIDE_NAMES[st], VW/2, barY+13);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 7px system-ui';
+  ctx.fillText(theme.name + '  ' + theme.stage, VW/2, barY+22);
 
-  // Score top-right
-  ctx.fillStyle = '#3a1030'; ctx.font = 'bold 12px system-ui'; ctx.textAlign='right';
-  ctx.fillText('★ ' + score, VW-8, 17);
+  // Boss health bar
+  if (boss && !boss.dead) {
+    const bw = 168, bx = VW/2 - bw/2, by = 42;
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(boss.name, VW/2, by - 4);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(bx-3, by-3, bw+6, 12, 5); ctx.fill();
+    ctx.fillStyle = '#3a1020'; roundRect(bx, by, bw, 6, 3); ctx.fill();
+    ctx.fillStyle = '#ff2e46'; roundRect(bx, by, Math.max(0, bw*(boss.hp/boss.maxhp)), 6, 3); ctx.fill();
+  }
 
-  // Level label
-  ctx.fillStyle = 'rgba(58,16,48,0.75)'; ctx.font='bold 9px system-ui'; ctx.textAlign='left';
-  ctx.fillText('LEVEL ' + (levelIndex+1), 10, 26);
+  // Pinny portrait badge (top-left)
+  drawPortrait(20, 20, 13);
+
+  // Lives (hearts)
+  for (let i=0;i<lives;i++) { ctx.fillStyle = '#ff3b5c'; heart(40 + i*13, 9, 4.4); }
+
+  // Watermelon counter
+  drawMelonIcon(43, 27, 4);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText('× ' + melons, 51, 31);
+
+  // Star score + level timer (top-right)
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#ffd23f'; ctx.font = 'bold 13px system-ui'; ctx.fillText('★ ' + score, VW-8, 17);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 10px system-ui'; ctx.fillText(fmtTime(timeT), VW-8, 31);
+
+  // Level-name banner (fades out over its lifetime)
+  if (bannerT > 0) drawBanner();
+}
+
+// Round portrait of Pinny for the HUD corner.
+function drawPortrait(x, y, r) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 6.28); ctx.fillStyle = '#2a1546'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#ffd23f'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, r-1.2, 0, 6.28); ctx.clip();
+  // mini watermelon wings
+  for (const sgn of [-1,1]) { ctx.fillStyle = '#ff5a5f';
+    ctx.beginPath(); ctx.arc(x+sgn*7, y+2, 3.2, Math.PI, 0); ctx.closePath(); ctx.fill(); }
+  // pineapple face
+  ctx.fillStyle = '#ffc93c'; roundRect(x-6, y-3, 12, 11, 5); ctx.fill();
+  ctx.fillStyle = '#3ddc84';
+  for (const lx of [-3,0,3]) { ctx.beginPath(); ctx.moveTo(x+lx, y-2); ctx.lineTo(x+lx-2, y-8); ctx.lineTo(x+lx+2, y-8); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x+1, y+2, 3.2, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#22203a'; ctx.beginPath(); ctx.arc(x+2, y+2.4, 1.5, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+
+function drawMelonIcon(x, y, r) {
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.arc(0,0,r,Math.PI,0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ff5a5f'; ctx.beginPath(); ctx.arc(0,-0.4,r-1.3,Math.PI,0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#3a2020'; ctx.fillRect(-1.4,-1.6,0.8,1); ctx.fillRect(0.7,-1.6,0.8,1);
+  ctx.restore();
+}
+
+function fmtTime(t) {
+  t = Math.floor(t); const m = (t/60)|0, s = t%60;
+  return m + ':' + (s<10?'0':'') + s;
+}
+
+function drawBanner() {
+  const alpha = bannerT < 25 ? bannerT/25 : 1;
+  ctx.globalAlpha = alpha;
+  const w = 220, h = 46, x = VW/2 - w/2, yy = 52;
+  ctx.fillStyle = '#5a3418'; roundRect(x, yy, w, h, 9); ctx.fill();
+  ctx.fillStyle = '#8a5a2c'; roundRect(x+3, yy+3, w-6, h-6, 7); ctx.fill();
+  ctx.fillStyle = '#6e461f'; ctx.lineWidth = 1.5; roundRect(x+3, yy+3, w-6, h-6, 7); ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffe9a8'; ctx.font = 'bold 16px system-ui'; ctx.fillText(theme.name, VW/2, yy+23);
+  ctx.fillStyle = '#ffd23f'; ctx.font = 'bold 11px system-ui'; ctx.fillText('STAGE ' + theme.stage, VW/2, yy+37);
+  ctx.globalAlpha = 1;
 }
 
 function heart(x,y,s) {
@@ -629,36 +1732,91 @@ function heart(x,y,s) {
 const titleScreen = document.getElementById('titleScreen');
 const endScreen = document.getElementById('endScreen');
 
+const shopScreen = document.getElementById('shopScreen');
+
 function startGame() {
-  levelIndex = 0; score = 0; lives = 3;
+  levelIndex = 0; score = 0; melons = 0; lives = 3;
+  upg = { jump: 0, claw: 0, speed: 0, colour: 0 };
+  // Optional level jump: open the game with #3 in the URL to start on level 3.
+  const h = parseInt((location.hash || '').replace('#',''), 10);
+  if (h >= 1 && h <= LEVELS.length) levelIndex = h - 1;
   titleScreen.classList.add('hidden');
   endScreen.classList.add('hidden');
+  shopScreen.classList.add('hidden');
   buildLevel(levelIndex);
-  updateSaturation();
   running = true;
 }
-function nextLevel() {
-  if (levelIndex + 1 < LEVELS.length) {
-    levelIndex++;
-    buildLevel(levelIndex);
-    updateSaturation();
-  } else {
-    endGame(true);
+
+// Finishing a level opens the shop (spend watermelons) before the next one.
+function finishLevel() {
+  running = false;
+  if (levelIndex + 1 < LEVELS.length) openShop();
+  else endGame(true);
+}
+function advanceLevel() {
+  levelIndex++;
+  buildLevel(levelIndex);
+  running = true;
+}
+
+/* ---------------- Shop ---------------- */
+const SHOP = [
+  { key:'jump',  ic:'⬆️', nm:'Jump Boost',   dc:'Leap higher',                        max:3, price:l=>8+l*7 },
+  { key:'claw',  ic:'💥', nm:'Claw Power',    dc:'Longer, faster claw',                max:3, price:l=>8+l*7 },
+  { key:'speed', ic:'💨', nm:'Speed Boots',   dc:'Run faster',                         max:3, price:l=>8+l*7 },
+  { key:'colour',ic:'🌈', nm:'Colour Boost',  dc:'Start brighter, slow the grey drain',max:2, price:l=>10+l*8 },
+  { key:'heal',  ic:'❤️', nm:'Extra Heart',   dc:'Restore one life',                   max:0, price:()=>6 },
+];
+
+function openShop() { renderShop(); shopScreen.classList.remove('hidden'); }
+
+function renderShop() {
+  document.getElementById('shopMelons').textContent = melons;
+  const wrap = document.getElementById('shopItems');
+  wrap.innerHTML = '';
+  for (const it of SHOP) {
+    const isHeal = it.key === 'heal';
+    const lvl = isHeal ? 0 : upg[it.key];
+    const maxed = isHeal ? (lives >= MAX_LIVES) : (lvl >= it.max);
+    const cost = it.price(lvl);
+    const card = document.createElement('div'); card.className = 'shop-card';
+    const pips = isHeal ? '' :
+      '<div class="pips">' + Array.from({length:it.max}, (_,i)=>`<span class="pip ${i<lvl?'on':''}"></span>`).join('') + '</div>';
+    card.innerHTML = `<div class="ic">${it.ic}</div><div class="nm">${it.nm}</div><div class="dc">${it.dc}</div>${pips}`;
+    const btn = document.createElement('button'); btn.className = 'buy';
+    if (maxed) { btn.textContent = isHeal ? 'FULL' : 'MAX'; btn.classList.add('max'); btn.disabled = true; }
+    else { btn.textContent = '🍉 ' + cost; btn.disabled = melons < cost; btn.onclick = () => buy(it); }
+    card.appendChild(btn);
+    wrap.appendChild(card);
   }
 }
+
+function buy(it) {
+  const isHeal = it.key === 'heal';
+  const lvl = isHeal ? 0 : upg[it.key];
+  const maxed = isHeal ? (lives >= MAX_LIVES) : (lvl >= it.max);
+  const cost = it.price(lvl);
+  if (maxed || melons < cost) return;
+  melons -= cost;
+  if (isHeal) lives = Math.min(MAX_LIVES, lives + 1); else upg[it.key]++;
+  renderShop();
+}
+
 function endGame(won) {
   running = false;
+  shopScreen.classList.add('hidden');
   document.getElementById('endEmoji').textContent = won ? '🌈🍍' : '😵';
   document.getElementById('endTitle').textContent = won ? 'Colour Rescued!' : 'Oh no!';
-  document.getElementById('endStat').textContent = '★ Score: ' + score;
+  document.getElementById('endStat').textContent = '★ ' + score + '     🍉 ' + melons;
   document.getElementById('endSub').textContent = won
-    ? 'Pinny brought all the colour back to Crabby World. You win! 🎉'
+    ? 'Pinny beat General Ashclaw and brought all the colour back to Crabby World. You win! 🎉'
     : 'The grey crabs got Pinny. Give it another go!';
   endScreen.classList.remove('hidden');
 }
 
 document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('againBtn').addEventListener('click', startGame);
+document.getElementById('shopContinue').addEventListener('click', () => { shopScreen.classList.add('hidden'); advanceLevel(); });
 
 /* ---------------- Main loop ---------------- */
 function frame() {
@@ -669,7 +1827,8 @@ function frame() {
   requestAnimationFrame(frame);
 }
 // draw an idle backdrop behind the title so the canvas isn't blank
-buildLevel(0); updateSaturation(); draw();
+score = 0; melons = 0; lives = 3;
+buildLevel(0); applyTide(); draw();
 requestAnimationFrame(frame);
 </script>
 </body>
