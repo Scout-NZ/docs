@@ -158,9 +158,12 @@ let ctx = worldCtx;
 
 // Internal (virtual) resolution — the game world is drawn at this size,
 // then the canvas is scaled up with CSS to fill the phone screen.
-// Orientation-aware: landscape plays 480x270, portrait swaps to 270x480 so
-// a vertically-held phone is filled edge to edge (resize() keeps it in sync).
+// Orientation-aware: landscape plays 480x270; portrait matches the phone's
+// real aspect (270 wide, height to fit) so the screen is filled edge to edge,
+// and reserves a control deck at the bottom so gameplay never hides under the
+// touch buttons (resize() keeps all of it in sync).
 let VW = 480, VH = 270;
+let ctrlPad = 0;               // virtual px reserved for the button deck (portrait only)
 const TILE = 24;               // tile size in world pixels
 const GRAV = 0.55;
 const MOVE = 0.7, MAXVX = 3.2, FRICT = 0.82;
@@ -175,8 +178,15 @@ worldCanvas.width = fgCanvas.width = VW; worldCanvas.height = fgCanvas.height = 
 function resize() {
   const availW = window.innerWidth, availH = window.innerHeight;
   const portrait = availH > availW;
-  const nw = portrait ? 270 : 480, nh = portrait ? 480 : 270;
-  if (nw !== VW) {
+  let nw, nh;
+  if (portrait) {
+    nw = 270;
+    nh = Math.max(420, Math.min(620, Math.round(270 * availH / availW)));  // fill the real aspect
+    ctrlPad = 96;
+  } else {
+    nw = 480; nh = 270; ctrlPad = 0;
+  }
+  if (nw !== VW || nh !== VH) {
     VW = nw; VH = nh;
     worldCanvas.width = fgCanvas.width = VW;
     worldCanvas.height = fgCanvas.height = VH;
@@ -871,11 +881,14 @@ function update() {
     return finishLevel();
   }
 
-  // Camera follows player. In portrait the view is taller than the level, so
-  // anchor the level to the bottom of the screen (sky fills the space above).
+  // Camera follows player. The playable view stops above the control deck
+  // (ctrlPad); when the view is taller than the level, anchor the level to
+  // the bottom of that playable area so the sky fills the space above and
+  // the ground never hides under the touch buttons.
+  const evh = VH - ctrlPad;
   cam.x = Math.max(0, Math.min(level.w - VW, p.x + p.w/2 - VW/2));
-  if (level.h <= VH) cam.y = level.h - VH;
-  else cam.y = Math.max(0, Math.min(level.h - VH, p.y + p.h/2 - VH/2));
+  if (level.h <= evh) cam.y = level.h - evh;
+  else cam.y = Math.max(0, Math.min(level.h - evh, p.y + p.h/2 - evh/2));
 }
 
 function respawn() {
@@ -962,6 +975,15 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   ctx.restore();
+
+  // control deck (portrait): a solid bezel under the play area so the world
+  // never renders behind the touch buttons
+  if (ctrlPad > 0) {
+    ctx.fillStyle = '#171024';
+    ctx.fillRect(0, VH - ctrlPad, VW, ctrlPad);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(0, VH - ctrlPad, VW, 2);
+  }
 
   // soft vignette for depth (Hollow Knight-style framing), under the HUD
   const vg = ctx.createRadialGradient(VW/2, VH*0.45, VH*0.5, VW/2, VH*0.55, VH*1.1);
@@ -1331,7 +1353,12 @@ function drawPinny(p) {
   if (sprites.pinny) {
     ctx.imageSmoothingEnabled = false;
     const sh = 30, sw = sh * sprites.pinny.width / sprites.pinny.height;
+    // the generated art faces LEFT; the game treats +x as "forward", so
+    // mirror the image (the surrounding transform already handles facing)
+    ctx.save();
+    ctx.scale(-1, 1);
     ctx.drawImage(sprites.pinny, -sw/2, 20 - sh, sw, sh);
+    ctx.restore();
     drawClawSwipe(p);
     ctx.restore();
     ctx.globalAlpha = 1;
