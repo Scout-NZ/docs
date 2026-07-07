@@ -74,6 +74,55 @@
   .hint { font-size: 13px; opacity: 0.7; margin-top: 6px; }
   .stat { font-size: clamp(16px,4vw,22px); font-weight: 700; }
 
+  /* ---- Title & character select ---- */
+  .splash { position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; image-rendering: pixelated; }
+  .splash-shade { position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(20,10,35,0.30) 0%, rgba(20,10,35,0.10) 35%, rgba(20,10,35,0.72) 100%); }
+  .splash-shade.heavy { background: rgba(16,8,30,0.78); }
+  .title-stack { position: relative; display: flex; flex-direction: column;
+    align-items: center; gap: 12px; width: 100%; }
+  .logo { display: flex; flex-direction: column; align-items: center; line-height: 0.92;
+    filter: drop-shadow(0 5px 0 rgba(40,18,5,0.55)) drop-shadow(0 10px 18px rgba(0,0,0,0.45)); }
+  .logo-line1, .logo-line2 { font-weight: 900; letter-spacing: 2px;
+    background: linear-gradient(180deg, #ffe58a 15%, #ff9d3c 55%, #e8542f 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-text-stroke: 2px #4d2408; }
+  .logo-line1 { font-size: clamp(44px, 13vw, 92px); }
+  .logo-line2 { font-size: clamp(56px, 17vw, 120px);
+    background: linear-gradient(180deg, #b8f27f 10%, #3ddc84 55%, #1f9e5c 100%);
+    -webkit-background-clip: text; background-clip: text; }
+  .tagline { font-size: clamp(14px, 4vw, 22px); font-weight: 800; color: #ffe9a8;
+    text-shadow: 0 2px 0 rgba(40,18,5,0.6); }
+  .pick-title { font-size: clamp(22px, 6vw, 40px); font-weight: 900; color: #ffe9a8;
+    letter-spacing: 1px; text-shadow: 0 3px 0 rgba(40,18,5,0.6); }
+  .char-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px; width: min(430px, 90vw); }
+  @media (min-aspect-ratio: 5/4) { .char-grid { grid-template-columns: repeat(4, 1fr); width: min(640px, 94vw); } }
+  .char-card { pointer-events: auto; cursor: pointer; position: relative;
+    border-radius: 16px; padding: 10px 6px 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: rgba(255,255,255,0.08); border: 3px solid rgba(255,255,255,0.18);
+    transition: transform 0.12s ease; }
+  .char-card .face { width: 74px; height: 74px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    background: radial-gradient(120% 120% at 50% 25%, #6fc8ff 0%, #2f86c9 100%); font-size: 40px; }
+  .char-card .face canvas, .char-card .face img { width: 100%; height: 100%;
+    object-fit: contain; image-rendering: pixelated; }
+  .char-card .cname { font-weight: 900; font-size: 14px; }
+  .char-card .ctag { font-size: 10px; opacity: 0.75; }
+  .char-card.selected { border-color: #ffd23f;
+    background: rgba(255,210,63,0.16);
+    box-shadow: 0 0 0 3px rgba(255,210,63,0.35), 0 6px 18px rgba(0,0,0,0.35);
+    transform: scale(1.04); }
+  .char-card.locked { cursor: default; }
+  .char-card.locked .face { filter: grayscale(1) brightness(0.75); }
+  .char-card.locked .cname { opacity: 0.65; }
+  .char-card .lock { position: absolute; top: 6px; right: 8px; font-size: 16px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+  .char-card.shake { animation: cardshake 0.3s; }
+  @keyframes cardshake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+
   /* ---- Shop ---- */
   .shop-bank { font-size: clamp(15px,4vw,20px); font-weight: 800; color: #ffd23f; }
   .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px;
@@ -111,11 +160,29 @@
 
   <!-- Title screen -->
   <div class="screen" id="titleScreen">
-    <div class="big-emoji">🍍🦀</div>
-    <div class="title">CRABBY WORLD<br/>The Colour Rescue</div>
-    <div class="sub">The grey crabs stole all the colour! Help <b>Pinny</b>, the one-eyed pineapple crab, bounce on them to bring the world back to life.</div>
-    <button class="play" id="startBtn">PLAY ▶</button>
-    <div class="hint">Tap ◀ ▶ to walk &nbsp;•&nbsp; JUMP to hop &nbsp;•&nbsp; CLAW to swipe crabs &nbsp;•&nbsp; or bounce on them!</div>
+    <img class="splash" id="splashImg" alt="" />
+    <div class="splash-shade"></div>
+    <div class="title-stack">
+      <div class="logo">
+        <span class="logo-line1">CRABBY</span>
+        <span class="logo-line2">WORLD</span>
+      </div>
+      <div class="tagline">🍉 The Colour Rescue 🍉</div>
+      <button class="play" id="startBtn">START ▶</button>
+      <div class="hint">Bring the colour back to Crabby World!</div>
+    </div>
+  </div>
+
+  <!-- Character select -->
+  <div class="screen hidden" id="charScreen">
+    <img class="splash" id="charSplash" alt="" />
+    <div class="splash-shade heavy"></div>
+    <div class="title-stack">
+      <div class="pick-title">CHOOSE YOUR CRAB</div>
+      <div class="char-grid" id="charGrid"></div>
+      <button class="play" id="charStart">GO! ▶</button>
+      <div class="hint">More crabs join once the colour is rescued…</div>
+    </div>
   </div>
 
   <!-- Shop screen (between levels) -->
@@ -1801,6 +1868,75 @@ function heart(x,y,s) {
 /* ---------------- Game flow ---------------- */
 const titleScreen = document.getElementById('titleScreen');
 const endScreen = document.getElementById('endScreen');
+const charScreen = document.getElementById('charScreen');
+
+/* ---------------- Title splash & character select ---------------- */
+// Splash art reuses the painted Emerald Falls backdrop; if it can't load
+// (offline / strict CSP) the styled gradient screens stand on their own.
+for (const id of ['splashImg', 'charSplash']) {
+  const el = document.getElementById(id);
+  el.onerror = () => { el.style.display = 'none'; };
+  el.src = ART_BGS[0];
+}
+
+const CHARACTERS = [
+  { id:'pinny', name:'Pinny',  tag:'Pineapple Watermelon Crab', emoji:'🍍', unlocked:true },
+  { id:'yeti',  name:'Frosty', tag:'Yeti Crab',                 emoji:'❄️', unlocked:false },
+  { id:'candy', name:'Lolly',  tag:'Candy Crab',                emoji:'🍭', unlocked:false },
+  { id:'coco',  name:'Coco',   tag:'Coconut Crab',              emoji:'🥥', unlocked:false },
+];
+let selectedChar = 'pinny';
+
+// Pinny's card portrait is rendered live by the game's own hero renderer,
+// so it automatically shows the generated sprite once that loads.
+function pinnyCardCanvas() {
+  const c = document.createElement('canvas'); c.width = 96; c.height = 96;
+  c.style.cssText = 'display:block;width:74px;height:74px;image-rendering:pixelated';
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(48, 30, 8, 48, 48, 70);
+  grd.addColorStop(0, '#9fdcf0'); grd.addColorStop(1, '#2f86c9');
+  g.fillStyle = grd; g.fillRect(0, 0, 96, 96);
+  g.fillStyle = '#3ddc84'; g.fillRect(0, 82, 96, 14);        // grass line
+  g.imageSmoothingEnabled = false;
+  const prev = ctx; ctx = g;                                  // reuse the game renderer
+  g.save(); g.translate(48, 22); g.scale(2.4, 2.4);
+  drawPinny({ x:-9, y:0, w:18, h:18, vx:0, vy:0, onGround:true,
+              face:1, blink:99, hurt:0, walk:0, atk:0, squash:0 });
+  g.restore(); ctx = prev;
+  return c;
+}
+
+function buildCharCards() {
+  const grid = document.getElementById('charGrid');
+  grid.innerHTML = '';
+  for (const chr of CHARACTERS) {
+    const card = document.createElement('div');
+    card.className = 'char-card' + (chr.unlocked ? (chr.id === selectedChar ? ' selected' : '') : ' locked');
+    const face = document.createElement('div'); face.className = 'face';
+    if (chr.id === 'pinny') face.appendChild(pinnyCardCanvas());
+    else face.textContent = chr.emoji;
+    card.appendChild(face);
+    const nm = document.createElement('div'); nm.className = 'cname'; nm.textContent = chr.name;
+    const tg = document.createElement('div'); tg.className = 'ctag';
+    tg.textContent = chr.unlocked ? chr.tag : 'Still grey — coming soon!';
+    card.appendChild(nm); card.appendChild(tg);
+    if (!chr.unlocked) {
+      const lk = document.createElement('div'); lk.className = 'lock'; lk.textContent = '🔒';
+      card.appendChild(lk);
+      card.onclick = () => { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); };
+    } else {
+      card.onclick = () => { selectedChar = chr.id; buildCharCards(); };
+    }
+    grid.appendChild(card);
+  }
+}
+
+function openCharSelect() {
+  titleScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  buildCharCards();
+  charScreen.classList.remove('hidden');
+}
 
 const shopScreen = document.getElementById('shopScreen');
 
@@ -1813,6 +1949,7 @@ function startGame() {
   titleScreen.classList.add('hidden');
   endScreen.classList.add('hidden');
   shopScreen.classList.add('hidden');
+  charScreen.classList.add('hidden');
   buildLevel(levelIndex);
   running = true;
 }
@@ -1884,8 +2021,9 @@ function endGame(won) {
   endScreen.classList.remove('hidden');
 }
 
-document.getElementById('startBtn').addEventListener('click', startGame);
-document.getElementById('againBtn').addEventListener('click', startGame);
+document.getElementById('startBtn').addEventListener('click', openCharSelect);
+document.getElementById('againBtn').addEventListener('click', openCharSelect);
+document.getElementById('charStart').addEventListener('click', startGame);
 document.getElementById('shopContinue').addEventListener('click', () => { shopScreen.classList.add('hidden'); advanceLevel(); });
 
 /* ---------------- Main loop ---------------- */
