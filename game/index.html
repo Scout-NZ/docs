@@ -179,6 +179,68 @@ window.addEventListener('resize', resize);
 resize();
 
 /* ------------------------------------------------------------------
+   GENERATED ART (Higgsfield, styled on the creator's hybrid-crab photos).
+   Sprites/backgrounds load at runtime from the CDN; sprites are chroma-
+   keyed in-canvas (models can't output alpha). If a download or CORS
+   read fails — offline, strict CSP, sandbox — the game silently keeps
+   its code-drawn art, so it is always playable. See game/assets.json.
+   ------------------------------------------------------------------ */
+const ART_SPRITES = {
+  // key = the solid backdrop colour each sprite was generated on
+  pinny:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045118_a7e802a5-ed24-4989-8e2d-9f01fa17d6b1.png', key:[0,0,255] },
+  grey:   { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045126_8f9d7ad8-efff-453a-b1fe-bfafe7d79571.png', key:[255,0,255] },
+  sucker: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045129_5d5c5a90-23b9-41e8-9baa-46ad88a55932.png', key:[0,255,0] },
+  flower: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045123_9da3a942-9ed3-41be-bd9c-1f65a012bcda.png', key:[255,0,255] },
+};
+const ART_BGS = {   // theme index -> painted parallax backdrop
+  0: 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png',
+  4: 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png',
+};
+const sprites = {}, bgArt = {};
+
+// Remove the key colour (including enclosed pockets) and trim to content.
+function chromaKey(img, key) {
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  let d;
+  try { d = g.getImageData(0, 0, c.width, c.height); }
+  catch (e) { return null; }                          // CORS-tainted: give up, use code art
+  const px = d.data, kr = key[0], kg = key[1], kb = key[2];
+  let minX = c.width, minY = c.height, maxX = 0, maxY = 0;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+    const i = (y * c.width + x) * 4;
+    const dr = px[i]-kr, dg = px[i+1]-kg, db = px[i+2]-kb;
+    if (dr*dr + dg*dg + db*db < 8100) px[i+3] = 0;    // within 90 of key -> transparent
+    else if (px[i+3] > 0) {
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX <= minX || maxY <= minY) return null;
+  g.putImageData(d, 0, 0);
+  const t = document.createElement('canvas');
+  t.width = maxX - minX + 1; t.height = maxY - minY + 1;
+  t.getContext('2d').drawImage(c, minX, minY, t.width, t.height, 0, 0, t.width, t.height);
+  return t;
+}
+
+function loadArt() {
+  for (const [name, s] of Object.entries(ART_SPRITES)) {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => { const k = chromaKey(img, s.key); if (k) sprites[name] = k; };
+    img.onerror = () => {};                            // keep code-drawn fallback
+    img.src = s.url;
+  }
+  for (const [idx, url] of Object.entries(ART_BGS)) {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => { bgArt[idx] = img; };
+    img.onerror = () => {};
+    img.src = url;
+  }
+}
+loadArt();
+
+/* ------------------------------------------------------------------
    LEVELS
    Legend:
      X = solid ground/block   . = empty
@@ -817,8 +879,16 @@ function draw() {
 
   // ---------- WORLD LAYER (starts greyscale; colour returns via CSS filter) ----------
   ctx = worldCtx;
-  drawSky();                                       // gradient, stars, sun/moon, clouds
-  drawFar();                                       // far parallax silhouettes per world
+  const bg = bgArt[levelIndex];
+  if (bg) {                                        // painted Higgsfield backdrop, gentle parallax
+    ctx.imageSmoothingEnabled = false;
+    const bw = Math.ceil(bg.width * (VH / bg.height));
+    let bx = -((cam.x * 0.08) % bw); if (bx > 0) bx -= bw;
+    for (; bx < VW; bx += bw) ctx.drawImage(bg, bx, 0, bw, VH);
+  } else {
+    drawSky();                                     // gradient, stars, sun/moon, clouds
+    drawFar();                                     // far parallax silhouettes per world
+  }
   drawHills(cam.x*0.3, theme.hills[0], VH-70);
   drawHills(cam.x*0.5 + 120, theme.hills[1], VH-45);
 
@@ -1214,6 +1284,18 @@ function drawPinny(p) {
   ctx.scale(p.face < 0 ? -sx : sx, sy);
   ctx.translate(0, -19);
 
+  // Generated Pinny sprite (from the creator's pineapple-watermelon crab);
+  // falls back to the code-drawn crab below if the art isn't loaded.
+  if (sprites.pinny) {
+    ctx.imageSmoothingEnabled = false;
+    const sh = 30, sw = sh * sprites.pinny.width / sprites.pinny.height;
+    ctx.drawImage(sprites.pinny, -sw/2, 20 - sh, sw, sh);
+    drawClawSwipe(p);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    return;
+  }
+
   // legs
   ctx.strokeStyle = '#c9791f'; ctx.lineWidth = 2;
   for (const dx of [-6,-2,2]) {
@@ -1284,25 +1366,28 @@ function drawPinny(p) {
   ctx.fillStyle = '#fff';                                      // teeth
   ctx.fillRect(-1.4, 11.4, 4.8, 1.3);
 
-  // claw swipe (thrusts forward during an attack; +x is "in front" after face flip)
-  if (p.atk > 0) {
-    const prog = (14 - p.atk) / 14;                            // 0 → 1 over the swing
-    const reach = Math.sin(Math.min(1, prog*1.25) * Math.PI) * 12;
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;   // slash arc
-    ctx.beginPath(); ctx.arc(11, 9, 9 + reach*0.4, -0.9, 0.9); ctx.stroke();
-    ctx.strokeStyle = '#e85f22'; ctx.lineWidth = 3;                  // outstretched arm
-    ctx.beginPath(); ctx.moveTo(7, 9); ctx.lineTo(12 + reach, 9); ctx.stroke();
-    ctx.fillStyle = '#ff7a3c';                                       // big pincer
-    ctx.beginPath(); ctx.arc(14 + reach, 9, 5, 0, 6.28); ctx.fill();
-    ctx.strokeStyle = '#e85f22'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(14 + reach, 6); ctx.lineTo(20 + reach, 4);
-    ctx.moveTo(14 + reach, 12); ctx.lineTo(20 + reach, 14);
-    ctx.stroke();
-  }
+  drawClawSwipe(p);
 
   ctx.restore();
   ctx.globalAlpha = 1;
+}
+
+// Claw swipe overlay (drawn in Pinny's local space; +x is "in front" after face flip).
+function drawClawSwipe(p) {
+  if (p.atk <= 0) return;
+  const prog = (14 - p.atk) / 14;                            // 0 → 1 over the swing
+  const reach = Math.sin(Math.min(1, prog*1.25) * Math.PI) * 12;
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;   // slash arc
+  ctx.beginPath(); ctx.arc(11, 9, 9 + reach*0.4, -0.9, 0.9); ctx.stroke();
+  ctx.strokeStyle = '#e85f22'; ctx.lineWidth = 3;                  // outstretched arm
+  ctx.beginPath(); ctx.moveTo(7, 9); ctx.lineTo(12 + reach, 9); ctx.stroke();
+  ctx.fillStyle = '#ff7a3c';                                       // big pincer
+  ctx.beginPath(); ctx.arc(14 + reach, 9, 5, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#e85f22'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(14 + reach, 6); ctx.lineTo(20 + reach, 4);
+  ctx.moveTo(14 + reach, 12); ctx.lineTo(20 + reach, 14);
+  ctx.stroke();
 }
 
 // --- Hybrid crab enemies ---
@@ -1347,6 +1432,20 @@ function drawCrab(c) {
       ctx.fillRect(Math.cos(a)*d - 1, 8 + Math.sin(a)*d*0.6 - 1, 2, 2);
     }
     ctx.globalAlpha = 1;
+  }
+
+  // Generated crab sprite (grey / paint-sucker / vine crab) with code fallback
+  if (sprites[kind]) {
+    ctx.imageSmoothingEnabled = false;
+    const spr = sprites[kind];
+    const sh = 22, sw = sh * spr.width / spr.height;
+    ctx.drawImage(spr, -sw/2, 16 - sh, sw, sh);
+    if (c.hitFlash > 0 && Math.floor(c.hitFlash/3) % 2 === 0) {   // armour flash
+      ctx.globalAlpha = 0.5; ctx.fillStyle = '#fff';
+      ctx.fillRect(-sw/2, 16 - sh, sw, sh); ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    return;
   }
 
   // legs

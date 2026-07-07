@@ -37,8 +37,14 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
 
 ## Notes for grown-ups
 
-- Everything is drawn with the HTML5 canvas — there are **no image or sound
-  files**, so the whole game is just this one `index.html`.
+- The core game is drawn with the HTML5 canvas, and it now also loads
+  **AI-generated art** (made with Higgsfield, styled on the creator's own
+  hybrid-crab photo collection): a painted Pinny sprite, grey/paint-sucker/vine
+  crab sprites, and painted backdrops for Emerald Falls and Mushroom Marsh.
+  Sprites are chroma-keyed and resized by the game at load time
+  (see `assets.json`). If the art can't load (offline, strict sandbox), the
+  game **automatically falls back to its built-in code-drawn art** — it is
+  always playable.
 - The art style is a 16-bit-inspired pixel-platformer look with layered
   atmosphere: parallax silhouette skylines unique to each world (waterfalls,
   turning gears, crate mesas, giant glowing mushrooms, ruined towers), drifting
