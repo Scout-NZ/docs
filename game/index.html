@@ -158,7 +158,9 @@ let ctx = worldCtx;
 
 // Internal (virtual) resolution — the game world is drawn at this size,
 // then the canvas is scaled up with CSS to fill the phone screen.
-const VW = 480, VH = 270;      // 16:9
+// Orientation-aware: landscape plays 480x270, portrait swaps to 270x480 so
+// a vertically-held phone is filled edge to edge (resize() keeps it in sync).
+let VW = 480, VH = 270;
 const TILE = 24;               // tile size in world pixels
 const GRAV = 0.55;
 const MOVE = 0.7, MAXVX = 3.2, FRICT = 0.82;
@@ -168,8 +170,17 @@ const MAX_LIVES = 5;           // heart pickups can top up to this many lives
 worldCanvas.width = fgCanvas.width = VW; worldCanvas.height = fgCanvas.height = VH;
 
 // --- Fit the canvas to the screen while keeping aspect ratio ---
+// Portrait phones get a 270x480 virtual screen (fills the display); landscape
+// keeps 480x270. The world/camera adapt automatically.
 function resize() {
   const availW = window.innerWidth, availH = window.innerHeight;
+  const portrait = availH > availW;
+  const nw = portrait ? 270 : 480, nh = portrait ? 480 : 270;
+  if (nw !== VW) {
+    VW = nw; VH = nh;
+    worldCanvas.width = fgCanvas.width = VW;
+    worldCanvas.height = fgCanvas.height = VH;
+  }
   const scale = Math.min(availW / VW, availH / VH);
   const w = Math.floor(VW * scale) + 'px', h = Math.floor(VH * scale) + 'px';
   worldCanvas.style.width = fgCanvas.style.width = w;
@@ -198,20 +209,49 @@ const ART_BGS = {   // theme index -> painted parallax backdrop
 };
 const sprites = {}, bgArt = {};
 
-// Remove the key colour (including enclosed pockets) and trim to content.
+// Remove the backdrop colour (including enclosed pockets) and trim to content.
+// Image models never paint the *exact* key colour we asked for, so the real
+// backdrop is sampled from the image corners and keyed with a tolerance,
+// followed by a fringe pass that eats the leftover halo around the sprite.
 function chromaKey(img, key) {
   const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
   const g = c.getContext('2d'); g.drawImage(img, 0, 0);
   let d;
   try { d = g.getImageData(0, 0, c.width, c.height); }
   catch (e) { return null; }                          // CORS-tainted: give up, use code art
-  const px = d.data, kr = key[0], kg = key[1], kb = key[2];
-  let minX = c.width, minY = c.height, maxX = 0, maxY = 0;
-  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-    const i = (y * c.width + x) * 4;
+  const W = c.width, H = c.height, px = d.data;
+
+  // sample the actual backdrop from the four corners
+  let kr = 0, kg = 0, kb = 0;
+  for (const [sx, sy] of [[2,2],[W-3,2],[2,H-3],[W-3,H-3]]) {
+    const i = (sy*W + sx) * 4; kr += px[i]; kg += px[i+1]; kb += px[i+2];
+  }
+  kr /= 4; kg /= 4; kb /= 4;
+  // sanity: corners should roughly agree with the requested key; if the model
+  // ignored the backdrop request entirely, keying would destroy the image.
+  const dk = (kr-key[0])**2 + (kg-key[1])**2 + (kb-key[2])**2;
+  if (dk > 150*150) return null;
+
+  const HARD = 115*115;                               // main key pass
+  for (let i = 0; i < px.length; i += 4) {
     const dr = px[i]-kr, dg = px[i+1]-kg, db = px[i+2]-kb;
-    if (dr*dr + dg*dg + db*db < 8100) px[i+3] = 0;    // within 90 of key -> transparent
-    else if (px[i+3] > 0) {
+    if (dr*dr + dg*dg + db*db < HARD) px[i+3] = 0;
+  }
+  // fringe pass: near-key pixels touching transparency get cleared too
+  const SOFT = 175*175;
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 1; y < H-1; y++) for (let x = 1; x < W-1; x++) {
+      const i = (y*W + x) * 4;
+      if (px[i+3] === 0) continue;
+      const dr = px[i]-kr, dg = px[i+1]-kg, db = px[i+2]-kb;
+      if (dr*dr + dg*dg + db*db >= SOFT) continue;
+      if (px[i-4+3] === 0 || px[i+4+3] === 0 || px[i-W*4+3] === 0 || px[i+W*4+3] === 0) px[i+3] = 0;
+    }
+  }
+  // trim to content
+  let minX = W, minY = H, maxX = 0, maxY = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (px[(y*W + x)*4 + 3] > 0) {
       if (x < minX) minX = x; if (x > maxX) maxX = x;
       if (y < minY) minY = y; if (y > maxY) maxY = y;
     }
@@ -831,9 +871,11 @@ function update() {
     return finishLevel();
   }
 
-  // Camera follows player
+  // Camera follows player. In portrait the view is taller than the level, so
+  // anchor the level to the bottom of the screen (sky fills the space above).
   cam.x = Math.max(0, Math.min(level.w - VW, p.x + p.w/2 - VW/2));
-  cam.y = Math.max(0, Math.min(Math.max(0, level.h - VH), p.y + p.h/2 - VH/2));
+  if (level.h <= VH) cam.y = level.h - VH;
+  else cam.y = Math.max(0, Math.min(level.h - VH, p.y + p.h/2 - VH/2));
 }
 
 function respawn() {
@@ -1621,8 +1663,9 @@ function drawHUD() {
   roundRect(VW-76, 4, 72, 32, 8); ctx.fill();
 
   // ---- COLOUR TIDE meter (top centre): fill, state ticks, state name ----
+  // On narrow portrait screens the meter drops below the corner plaques.
   const st = tState();
-  const barW = 108, barX = VW/2 - barW/2, barY = 9;
+  const barW = 108, barX = VW/2 - barW/2, barY = VW < 400 ? 44 : 9;
   ctx.fillStyle = 'rgba(0,0,0,0.32)'; roundRect(barX-3, barY-3, barW+6, 12, 6); ctx.fill();
   ctx.fillStyle = '#555'; roundRect(barX, barY, barW, 6, 3); ctx.fill();
   if (st === 3) {                                  // rainbow-animated fill during the rush
@@ -1646,7 +1689,7 @@ function drawHUD() {
 
   // Boss health bar
   if (boss && !boss.dead) {
-    const bw = 168, bx = VW/2 - bw/2, by = 42;
+    const bw = 168, bx = VW/2 - bw/2, by = VW < 400 ? 82 : 42;
     ctx.fillStyle = '#fff'; ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
     ctx.fillText(boss.name, VW/2, by - 4);
     ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(bx-3, by-3, bw+6, 12, 5); ctx.fill();
@@ -1708,7 +1751,7 @@ function fmtTime(t) {
 function drawBanner() {
   const alpha = bannerT < 25 ? bannerT/25 : 1;
   ctx.globalAlpha = alpha;
-  const w = 220, h = 46, x = VW/2 - w/2, yy = 52;
+  const w = Math.min(220, VW - 24), h = 46, x = VW/2 - w/2, yy = VW < 400 ? 96 : 52;
   ctx.fillStyle = '#5a3418'; roundRect(x, yy, w, h, 9); ctx.fill();
   ctx.fillStyle = '#8a5a2c'; roundRect(x+3, yy+3, w-6, h-6, 7); ctx.fill();
   ctx.fillStyle = '#6e461f'; ctx.lineWidth = 1.5; roundRect(x+3, yy+3, w-6, h-6, 7); ctx.stroke();
