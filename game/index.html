@@ -139,23 +139,36 @@
   @keyframes cardshake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
 
   /* ---- Shop ---- */
-  .shop-bank { font-size: clamp(15px,4vw,20px); font-weight: 800; color: #ffd23f; }
-  .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px;
-    width: min(440px, 92vw); }
-  .shop-card { pointer-events: auto; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.18);
-    border-radius: 14px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .shop-card .ic { font-size: 30px; line-height: 1; }
-  .shop-card .nm { font-weight: 800; font-size: 14px; }
-  .shop-card .dc { font-size: 11px; opacity: 0.75; text-align: center; min-height: 26px; }
+  /* Big, obvious watermelon bank so kids see what they can spend. */
+  .shop-you-have { font-size: 13px; font-weight: 800; letter-spacing: 1px;
+    color: #ffe9a8; opacity: 0.9; text-transform: uppercase; }
+  .shop-bank { pointer-events: auto; display: inline-flex; align-items: center; gap: 8px;
+    font-size: clamp(20px, 6vw, 30px); font-weight: 900; color: #3a1030;
+    background: linear-gradient(180deg,#ffe58a,#ffb347); padding: 8px 22px; border-radius: 999px;
+    border: 3px solid #fff2c4; box-shadow: 0 4px 0 #b5651d, 0 8px 16px rgba(0,0,0,0.35); }
+  .shop-bank #shopMelons { font-variant-numeric: tabular-nums; min-width: 1.2em; text-align: right; }
+  .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px;
+    width: min(460px, 94vw); }
+  /* The WHOLE card is the tap target. */
+  .shop-card { pointer-events: auto; cursor: pointer; position: relative;
+    background: rgba(255,255,255,0.10); border: 3px solid rgba(255,255,255,0.22);
+    border-radius: 16px; padding: 12px 8px 10px; display: flex; flex-direction: column;
+    align-items: center; gap: 5px; transition: transform 0.08s ease, background 0.1s ease; }
+  .shop-card.afford { border-color: #ffe58a; box-shadow: 0 4px 0 rgba(181,101,29,0.55); }
+  .shop-card.afford:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(181,101,29,0.55);
+    background: rgba(255,229,138,0.18); }
+  .shop-card.cant { opacity: 0.55; }
+  .shop-card.maxed { cursor: default; border-color: #3ddc84; }
+  .shop-card .ic { font-size: 34px; line-height: 1; }
+  .shop-card .nm { font-weight: 900; font-size: 15px; }
+  .shop-card .dc { font-size: 11px; opacity: 0.8; text-align: center; min-height: 26px; }
   .shop-card .pips { display: flex; gap: 3px; }
-  .shop-card .pip { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+  .shop-card .pip { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.2); }
   .shop-card .pip.on { background: #3ddc84; }
-  .buy { pointer-events: auto; cursor: pointer; border: none; border-radius: 999px; font-weight: 800;
-    font-size: 13px; padding: 7px 14px; color: #3a1030; background: linear-gradient(180deg,#ffe58a,#ffb347);
-    box-shadow: 0 3px 0 #b5651d; }
-  .buy:active { transform: translateY(2px); box-shadow: 0 1px 0 #b5651d; }
-  .buy:disabled { background: #6b6474; color: #b8b2c2; box-shadow: 0 3px 0 #47414f; cursor: default; }
-  .buy.max { background: #3ddc84; color: #123; box-shadow: 0 3px 0 #227a49; }
+  .buy { margin-top: 2px; border-radius: 999px; font-weight: 900; font-size: 15px;
+    padding: 6px 18px; color: #3a1030; background: linear-gradient(180deg,#ffe58a,#ffb347); }
+  .buy.max { background: #3ddc84; color: #123; }
+  .shop-card.shake { animation: cardshake 0.3s; }
 </style>
 </head>
 <body>
@@ -203,9 +216,11 @@
 
   <!-- Shop screen (between levels) -->
   <div class="screen hidden" id="shopScreen">
-    <div class="title" style="font-size:clamp(24px,6vw,42px)">CRAB SHOP</div>
-    <div class="shop-bank">🍉 <span id="shopMelons">0</span> watermelons</div>
+    <div class="title" style="font-size:clamp(22px,6vw,38px);margin-bottom:2px">CRAB SHOP</div>
+    <div class="shop-you-have">You have</div>
+    <div class="shop-bank">🍉 <span id="shopMelons">0</span></div>
     <div id="shopItems" class="shop-grid"></div>
+    <div class="hint">Tap a card to buy it!</div>
     <button class="play" id="shopContinue">CONTINUE ▶</button>
   </div>
 
@@ -821,12 +836,7 @@ function update() {
     if (c.hitFlash <= 0 && aabb(p, c)) {
       const stomped = p.vy > 1.2 && (p.y + p.h) - c.y < 12;
       if (stomped) { p.vy = -6.5; damageCrab(c, 0); }            // bounce + hurt crab
-      else if (p.hurt <= 0) {
-        lives--; p.hurt = 90; p.vx = (p.x < c.x ? -1 : 1) * 4; p.vy = -5;
-        gainTide(-0.04);                                   // getting hit lets grey creep back
-        spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
-        if (lives <= 0) return endGame(false);
-      }
+      else return loseLife();                                    // hit from the side → restart level
     }
   }
 
@@ -836,12 +846,7 @@ function update() {
     for (const s of solids) { if (pr.x>s.x && pr.x<s.x+s.w && pr.y>s.y && pr.y<s.y+s.h) { pr.life = 0; break; } }
     const box = { x: pr.x-pr.r, y: pr.y-pr.r, w: pr.r*2, h: pr.r*2 };
     if (atkBox && pr.life > 0 && aabb(box, atkBox)) { pr.life = 0; spawnBurst(pr.x, pr.y, ['#fff','#ffd23f']); }  // clawed away
-    if (pr.life > 0 && p.hurt <= 0 && aabb(p, box)) {
-      pr.life = 0; lives--; p.hurt = 90; p.vx = (pr.vx>0?1:-1)*3.5; p.vy = -4.5;
-      gainTide(-0.04);
-      spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
-      if (lives <= 0) return endGame(false);
-    }
+    if (pr.life > 0 && aabb(p, box)) { pr.life = 0; return loseLife(); }   // hit → restart level
   }
   projectiles = projectiles.filter(pr => pr.life > 0 && pr.y < level.h + 60);
 
@@ -929,11 +934,7 @@ function update() {
     if (!boss.dead && aabb(p, bo)) {
       const stomped = p.vy > 1.2 && (p.y + p.h) - bo.y < 16;
       if (stomped && bo.hurt <= 0) { p.vy = -8.5; hitBoss(0); }
-      else if (!stomped && bo.hurt <= 0 && p.hurt <= 0) {
-        lives--; p.hurt = 90; p.vx = (p.x < bo.x ? -1 : 1) * 5; p.vy = -5;
-        spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
-        if (lives <= 0) return endGame(false);
-      }
+      else if (!stomped && bo.hurt <= 0) return loseLife();      // boss hit → restart level
     }
     if (!running) return;   // boss defeat may have ended the game
   }
@@ -963,12 +964,8 @@ function update() {
   for (const pt of particles) { pt.vy += 0.18; pt.x += pt.vx; pt.y += pt.vy; pt.life--; }
   particles = particles.filter(pt => pt.life > 0);
 
-  // Fell in a pit
-  if (p.y > level.h + 40) {
-    lives--;
-    if (lives <= 0) return endGame(false);
-    respawn();
-  }
+  // Fell in a pit → restart level
+  if (p.y > level.h + 40) return loseLife();
 
   // Reached the flag → win (only when the world's colour is mostly back)
   if (flag && aabb(p, flag)) {
@@ -987,11 +984,14 @@ function update() {
   else cam.y = Math.max(0, Math.min(level.h - evh, p.y + p.h/2 - evh/2));
 }
 
-function respawn() {
-  const map = LEVELS[levelIndex];
-  for (let r=0;r<map.length;r++) for (let c=0;c<map[r].length;c++)
-    if (map[r][c]==='P') { player.x = c*TILE; player.y = r*TILE; }
-  player.vx = 0; player.vy = 0; player.hurt = 60;
+// Losing a life restarts the whole current level (kid-classic lives system).
+// Score, watermelons and upgrades are kept; when the last life is gone it's
+// game over. Callers `return loseLife()` so the frame stops after the rebuild.
+function loseLife() {
+  lives--;
+  spawnBurst(player.x + player.w/2, player.y + player.h/2, ['#ff3b5c','#ffd23f','#fff'], 18);
+  if (lives <= 0) endGame(false);
+  else buildLevel(levelIndex);
 }
 
 // Land a hit on the boss (stomp or claw). dir = knockback direction (0 = none).
@@ -1932,7 +1932,7 @@ let curHeroSprite = 'pinny';                 // which loaded sprite the hero ren
 // Whether each hero sprite's art needs mirroring so it faces the way it moves.
 // Pinny's source art faces left (mirror = true); Frosty/Lolly were generated
 // facing the other way, so they must NOT be mirrored.
-const CHAR_FLIP = { pinny:true, char_yeti:false, char_candy:false };
+const CHAR_FLIP = { pinny:true, char_yeti:true, char_candy:false };   // confirmed in play
 
 function cardBaseCanvas() {
   const c = document.createElement('canvas'); c.width = 96; c.height = 96;
@@ -2052,24 +2052,29 @@ function renderShop() {
     const lvl = isHeal ? 0 : upg[it.key];
     const maxed = isHeal ? (lives >= MAX_LIVES) : (lvl >= it.max);
     const cost = it.price(lvl);
-    const card = document.createElement('div'); card.className = 'shop-card';
+    const afford = melons >= cost;
+    const card = document.createElement('div');
+    card.className = 'shop-card' + (maxed ? ' maxed' : afford ? ' afford' : ' cant');
     const pips = isHeal ? '' :
       '<div class="pips">' + Array.from({length:it.max}, (_,i)=>`<span class="pip ${i<lvl?'on':''}"></span>`).join('') + '</div>';
-    card.innerHTML = `<div class="ic">${it.ic}</div><div class="nm">${it.nm}</div><div class="dc">${it.dc}</div>${pips}`;
-    const btn = document.createElement('button'); btn.className = 'buy';
-    if (maxed) { btn.textContent = isHeal ? 'FULL' : 'MAX'; btn.classList.add('max'); btn.disabled = true; }
-    else { btn.textContent = '🍉 ' + cost; btn.disabled = melons < cost; btn.onclick = () => buy(it); }
-    card.appendChild(btn);
+    const price = maxed ? `<div class="buy max">${isHeal ? 'FULL' : 'MAX'}</div>`
+                        : `<div class="buy">🍉 ${cost}</div>`;
+    card.innerHTML = `<div class="ic">${it.ic}</div><div class="nm">${it.nm}</div><div class="dc">${it.dc}</div>${pips}${price}`;
+    // The WHOLE card is the buy button (kid-friendly big tap target).
+    if (!maxed) card.onclick = () => buy(it, card);
     wrap.appendChild(card);
   }
 }
 
-function buy(it) {
+function buy(it, card) {
   const isHeal = it.key === 'heal';
   const lvl = isHeal ? 0 : upg[it.key];
   const maxed = isHeal ? (lives >= MAX_LIVES) : (lvl >= it.max);
   const cost = it.price(lvl);
-  if (maxed || melons < cost) return;
+  if (maxed || melons < cost) {           // can't afford → wiggle, no purchase
+    if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+    return;
+  }
   melons -= cost;
   if (isHeal) lives = Math.min(MAX_LIVES, lives + 1); else upg[it.key]++;
   renderShop();
