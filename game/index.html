@@ -296,9 +296,15 @@ const ART_SPRITES = {
   sucker: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045129_5d5c5a90-23b9-41e8-9baa-46ad88a55932.png', key:[0,255,0] },
   flower: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045123_9da3a942-9ed3-41be-bd9c-1f65a012bcda.png', key:[255,0,255] },
 };
-const ART_BGS = {   // theme index -> painted parallax backdrop
-  0: 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png',
-  4: 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png',
+const ABASE = 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/';
+const ART_BGS = {   // theme index -> painted parallax backdrop (Higgsfield, one per world)
+  0: ABASE + 'hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png',   // Emerald Falls
+  1: ABASE + 'hf_20260708_081012_7727cb3f-8383-4d2e-9623-bba5cb2f31e5.png',   // Coral Gear Coast
+  2: ABASE + 'hf_20260708_081015_ec8c0109-0915-4343-9c88-489b568b94cb.png',   // Palm Cove
+  3: ABASE + 'hf_20260708_081018_79934582-484c-4c0f-907e-f9a6297e5956.png',   // Box Mountains
+  4: ABASE + 'hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png',   // Mushroom Marsh
+  5: ABASE + 'hf_20260708_081021_22bbb742-3086-42a1-b851-24e6648fc878.png',   // Monochrome Wasteland
+  6: ABASE + 'hf_20260708_081024_7d14b81b-c0fc-43d6-a333-af75b10dd91d.png',   // Ashclaw's Keep
 };
 const sprites = {}, bgArt = {};
 
@@ -1018,17 +1024,19 @@ function draw() {
   // ---------- WORLD LAYER (starts greyscale; colour returns via CSS filter) ----------
   ctx = worldCtx;
   const bg = bgArt[levelIndex];
-  if (bg) {                                        // painted Higgsfield backdrop, gentle parallax
+  if (bg) {                                        // painted Higgsfield backdrop fills the view
     ctx.imageSmoothingEnabled = false;
     const bw = Math.ceil(bg.width * (VH / bg.height));
     let bx = -((cam.x * 0.08) % bw); if (bx > 0) bx -= bw;
     for (; bx < VW; bx += bw) ctx.drawImage(bg, bx, 0, bw, VH);
+    // faint ground-line haze so the tile platforms read against the painting
+    ctx.fillStyle = 'rgba(20,14,30,0.12)'; ctx.fillRect(0, VH*0.72, VW, VH*0.28);
   } else {
     drawSky();                                     // gradient, stars, sun/moon, clouds
     drawFar();                                     // far parallax silhouettes per world
+    drawHills(cam.x*0.3, theme.hills[0], VH-70);   // code-drawn hills only in the fallback
+    drawHills(cam.x*0.5 + 120, theme.hills[1], VH-45);
   }
-  drawHills(cam.x*0.3, theme.hills[0], VH-70);
-  drawHills(cam.x*0.5 + 120, theme.hills[1], VH-45);
 
   ctx.save();
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
