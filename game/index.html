@@ -295,6 +295,9 @@ const ART_SPRITES = {
   grey:   { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045126_8f9d7ad8-efff-453a-b1fe-bfafe7d79571.png', key:[255,0,255] },
   sucker: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045129_5d5c5a90-23b9-41e8-9baa-46ad88a55932.png', key:[0,255,0] },
   flower: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045123_9da3a942-9ed3-41be-bd9c-1f65a012bcda.png', key:[255,0,255] },
+  // playable hero sprites (generated from the crab collection)
+  char_yeti:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075557_fc604099-1e0e-4e07-a44e-10b1da434350.png', key:[255,0,255] },
+  char_candy: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075634_8a49e69a-1a7a-44ef-8786-4ee95553d3b8.png', key:[255,0,255] },
 };
 const ABASE = 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/';
 const ART_BGS = {   // theme index -> painted parallax backdrop (Higgsfield, one per world)
@@ -366,7 +369,11 @@ function chromaKey(img, key) {
 function loadArt() {
   for (const [name, s] of Object.entries(ART_SPRITES)) {
     const img = new Image(); img.crossOrigin = 'anonymous';
-    img.onload = () => { const k = chromaKey(img, s.key); if (k) sprites[name] = k; };
+    img.onload = () => {
+      const k = chromaKey(img, s.key); if (k) sprites[name] = k;
+      // refresh the character portraits if the picker is open when art lands
+      if (typeof buildCharCards === 'function' && charScreen && !charScreen.classList.contains('hidden')) buildCharCards();
+    };
     img.onerror = () => {};                            // keep code-drawn fallback
     img.src = s.url;
   }
@@ -1439,16 +1446,18 @@ function drawPinny(p) {
   ctx.scale(p.face < 0 ? -sx : sx, sy);
   ctx.translate(0, -19);
 
-  // Generated Pinny sprite (from the creator's pineapple-watermelon crab);
-  // falls back to the code-drawn crab below if the art isn't loaded.
-  if (sprites.pinny) {
+  // Selected character's generated sprite (Pinny / Frosty / Lolly); falls back
+  // to the code-drawn crab below if the art isn't loaded.
+  const heroKey = p._spr || curHeroSprite;
+  const heroSpr = sprites[heroKey];
+  if (heroSpr) {
     ctx.imageSmoothingEnabled = false;
-    const sh = 30, sw = sh * sprites.pinny.width / sprites.pinny.height;
-    // the generated art faces LEFT; the game treats +x as "forward", so
-    // mirror the image (the surrounding transform already handles facing)
+    const sh = 30, sw = sh * heroSpr.width / heroSpr.height;
+    // the generated art faces LEFT; the game treats +x as "forward", so mirror
+    // it (per-character, in case a sprite was drawn facing the other way).
     ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(sprites.pinny, -sw/2, 20 - sh, sw, sh);
+    if (CHAR_FLIP[heroKey] !== false) ctx.scale(-1, 1);
+    ctx.drawImage(heroSpr, -sw/2, 20 - sh, sw, sh);
     ctx.restore();
     drawClawSwipe(p);
     ctx.restore();
@@ -1913,16 +1922,17 @@ charSplash.onerror = () => { charSplash.style.display = 'none'; };
 charSplash.src = TITLE_SPLASH;
 
 const CHARACTERS = [
-  { id:'pinny', name:'Pinny',  tag:'Pineapple Watermelon Crab', emoji:'🍍', unlocked:true },
-  { id:'yeti',  name:'Frosty', tag:'Yeti Crab',                 emoji:'❄️', unlocked:false },
-  { id:'candy', name:'Lolly',  tag:'Candy Crab',                emoji:'🍭', unlocked:false },
-  { id:'coco',  name:'Coco',   tag:'Coconut Crab',              emoji:'🥥', unlocked:false },
+  { id:'pinny', name:'Pinny',  tag:'Pineapple Watermelon Crab', emoji:'🍍', sprite:'pinny',      unlocked:true,  perk:'All-rounder' },
+  { id:'yeti',  name:'Frosty', tag:'Yeti Crab',                 emoji:'❄️', sprite:'char_yeti',  unlocked:true,  perk:'+1 heart ❤️', perkHeart:true },
+  { id:'candy', name:'Lolly',  tag:'Candy Crab',                emoji:'🍭', sprite:'char_candy', unlocked:true,  perk:'Higher jump ⬆️', perkJump:true },
+  { id:'coco',  name:'Coco',   tag:'Coconut Crab',              emoji:'🥥', sprite:null,         unlocked:false },
 ];
 let selectedChar = 'pinny';
+let curHeroSprite = 'pinny';                 // which loaded sprite the hero renders as
+// Whether each hero sprite's art needs mirroring so it faces the way it moves.
+const CHAR_FLIP = { pinny:true, char_yeti:true, char_candy:true };
 
-// Pinny's card portrait is rendered live by the game's own hero renderer,
-// so it automatically shows the generated sprite once that loads.
-function pinnyCardCanvas() {
+function cardBaseCanvas() {
   const c = document.createElement('canvas'); c.width = 96; c.height = 96;
   c.style.cssText = 'display:block;width:74px;height:74px;image-rendering:pixelated';
   const g = c.getContext('2d');
@@ -1931,12 +1941,29 @@ function pinnyCardCanvas() {
   g.fillStyle = grd; g.fillRect(0, 0, 96, 96);
   g.fillStyle = '#3ddc84'; g.fillRect(0, 82, 96, 14);        // grass line
   g.imageSmoothingEnabled = false;
-  const prev = ctx; ctx = g;                                  // reuse the game renderer
-  g.save(); g.translate(48, 22); g.scale(2.4, 2.4);
-  drawPinny({ x:-9, y:0, w:18, h:18, vx:0, vy:0, onGround:true,
-              face:1, blink:99, hurt:0, walk:0, atk:0, squash:0 });
-  g.restore(); ctx = prev;
   return c;
+}
+
+// A character's portrait: its keyed sprite if loaded; Pinny's live code-drawn
+// crab as a fallback; otherwise the emoji.
+function charFace(chr) {
+  const spr = sprites[chr.sprite];
+  if (spr) {
+    const c = cardBaseCanvas(), g = c.getContext('2d');
+    const sh = 76, sw = sh * spr.width / spr.height;
+    g.drawImage(spr, 48 - sw/2, 86 - sh, sw, sh);
+    return c;
+  }
+  if (chr.id === 'pinny') {
+    const c = cardBaseCanvas(), g = c.getContext('2d');
+    const prev = ctx; ctx = g;
+    g.save(); g.translate(48, 22); g.scale(2.4, 2.4);
+    drawPinny({ x:-9, y:0, w:18, h:18, vx:0, vy:0, onGround:true,
+                face:1, blink:99, hurt:0, walk:0, atk:0, squash:0, _spr:'pinny' });
+    g.restore(); ctx = prev;
+    return c;
+  }
+  const d = document.createElement('div'); d.textContent = chr.emoji; return d;
 }
 
 function buildCharCards() {
@@ -1946,12 +1973,11 @@ function buildCharCards() {
     const card = document.createElement('div');
     card.className = 'char-card' + (chr.unlocked ? (chr.id === selectedChar ? ' selected' : '') : ' locked');
     const face = document.createElement('div'); face.className = 'face';
-    if (chr.id === 'pinny') face.appendChild(pinnyCardCanvas());
-    else face.textContent = chr.emoji;
+    face.appendChild(charFace(chr));
     card.appendChild(face);
     const nm = document.createElement('div'); nm.className = 'cname'; nm.textContent = chr.name;
     const tg = document.createElement('div'); tg.className = 'ctag';
-    tg.textContent = chr.unlocked ? chr.tag : 'Still grey — coming soon!';
+    tg.textContent = chr.unlocked ? chr.perk : 'Still grey — coming soon!';
     card.appendChild(nm); card.appendChild(tg);
     if (!chr.unlocked) {
       const lk = document.createElement('div'); lk.className = 'lock'; lk.textContent = '🔒';
@@ -1974,8 +2000,13 @@ function openCharSelect() {
 const shopScreen = document.getElementById('shopScreen');
 
 function startGame() {
-  levelIndex = 0; score = 0; melons = 0; lives = 3;
-  upg = { jump: 0, claw: 0, speed: 0, colour: 0 };
+  // Apply the chosen crab: its sprite plus a small signature perk.
+  const chr = CHARACTERS.find(c => c.id === selectedChar && c.unlocked) || CHARACTERS[0];
+  selectedChar = chr.id;
+  curHeroSprite = chr.sprite || 'pinny';
+  levelIndex = 0; score = 0; melons = 0;
+  lives = 3 + (chr.perkHeart ? 1 : 0);
+  upg = { jump: chr.perkJump ? 1 : 0, claw: 0, speed: 0, colour: 0 };
   // Optional level jump: open the game with #3 in the URL to start on level 3.
   const h = parseInt((location.hash || '').replace('#',''), 10);
   if (h >= 1 && h <= LEVELS.length) levelIndex = h - 1;
