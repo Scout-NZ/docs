@@ -82,6 +82,10 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
 - **Collect watermelon slices** (🍉 counter) and earn **stars** (★) for defeating
   crabs. HUD shows a Pinny portrait, hearts, the Colour Tide meter (with state
   name and threshold ticks), and a level timer.
+- **Choose your crab:** the title screen leads to a character-select screen.
+  **Pinny** (all-rounder), **Frosty** the Yeti Crab (starts with +1 heart) and
+  **Lolly** the Candy Crab (higher jump) are all playable, each with its own
+  generated sprite; **Coco** the Coconut Crab is coming soon.
 - **CRAB SHOP between levels:** spend watermelons on Jump Boost, Claw Power,
   Speed Boots, **Colour Boost** (start levels brighter and slow the grey drain),
   or an Extra Heart. Upgrades last the whole run.
