@@ -11,9 +11,12 @@
       "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045126_8f9d7ad8-efff-453a-b1fe-bfafe7d79571.png" },
     { "role": "paint-sucker crab sprite", "key_colour": "#00FF00",
       "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045129_5d5c5a90-23b9-41e8-9baa-46ad88a55932.png" },
-    { "role": "Emerald Falls backdrop (level 1)",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png" },
-    { "role": "Mushroom Marsh backdrop (level 5)",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png" }
+    { "role": "backdrop - Emerald Falls (world 0)",        "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png" },
+    { "role": "backdrop - Coral Gear Coast (world 1)",     "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081012_7727cb3f-8383-4d2e-9623-bba5cb2f31e5.png" },
+    { "role": "backdrop - Palm Cove (world 2)",            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081015_ec8c0109-0915-4343-9c88-489b568b94cb.png" },
+    { "role": "backdrop - Box Mountains (world 3)",        "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081018_79934582-484c-4c0f-907e-f9a6297e5956.png" },
+    { "role": "backdrop - Mushroom Marsh (world 4)",       "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png" },
+    { "role": "backdrop - Monochrome Wasteland (world 5)", "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081021_22bbb742-3086-42a1-b851-24e6648fc878.png" },
+    { "role": "backdrop - Ashclaw's Keep boss (world 6)",  "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081024_7d14b81b-c0fc-43d6-a333-af75b10dd91d.png" }
   ]
 }
