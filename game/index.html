@@ -1930,7 +1930,9 @@ const CHARACTERS = [
 let selectedChar = 'pinny';
 let curHeroSprite = 'pinny';                 // which loaded sprite the hero renders as
 // Whether each hero sprite's art needs mirroring so it faces the way it moves.
-const CHAR_FLIP = { pinny:true, char_yeti:true, char_candy:true };
+// Pinny's source art faces left (mirror = true); Frosty/Lolly were generated
+// facing the other way, so they must NOT be mirrored.
+const CHAR_FLIP = { pinny:true, char_yeti:false, char_candy:false };
 
 function cardBaseCanvas() {
   const c = document.createElement('canvas'); c.width = 96; c.height = 96;
