@@ -570,7 +570,9 @@ let timeT, bannerT, ambient, solidSet, nests;
 // (off-screen/stuck drops float back into play; see updateDrops).
 // restorables: grey world objects that bloom when fed colour drops.
 let crystals = [], restorables = [], drops = [], colourDrops = 0;
+let dropLoop = false;              // true in levels built around the colour-drop loop
 let testMode = false;              // '#test' loads the mechanics test room
+let showHit = false;               // debug hitbox overlay (press H)
 
 // --- Scene manager (modular: 'menu' -> 'home' -> 'play') ---
 // Add future scenes by giving them their own update/draw and a case in frame().
@@ -627,7 +629,7 @@ const TEST_ROOM_MAP = [
   "........XXXX..................................",
   "..............................................",
   "......XXXX....................................",
-  "..P.........C.........R..............F........",
+  "..P.........C.........R......G.......F........",
   "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
 ];
@@ -656,6 +658,7 @@ function buildLevel(idx) {
       else if (ch === 'R') restorables.push(makeRestorable(x, y)); // grey palm tree
     }
   }
+  dropLoop = crystals.length > 0 || restorables.length > 0;   // this level runs the colour-drop loop
   level = { w: map[0].length * TILE, h: map.length * TILE };
   solidSet = new Set(solids.map(s => (s.x/TILE) + ',' + (s.y/TILE)));   // neighbour lookups for tile art
   ambient = [];
@@ -675,13 +678,14 @@ function buildLevel(idx) {
 
 function makePlayer(x, y) {
   return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0, atk: 0, atkCd: 0,
-           squash: 0, wasGround: false };
+           squash: 0, wasGround: false, coyote: 0, anim: 'idle' };
 }
 function makeCrab(x, y, kind) {
   kind = kind || 'grey';
   return { x: x+3, y: y+6, w: 18, h: 14, kind, vx: (Math.random()<.5?-1:1)*0.7,
            dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3,
            hp: kind === 'crate' ? 2 : 1, hitFlash: 0,      // crate crabs are armoured
+           carrying: [], reclaim: null,                    // colour drops this crab has trapped
            onG: false, dir: 1,
            shootCd: 90 + Math.random()*140,                 // projectile timer (shooters)
            lungeCd: 90 + Math.random()*120, windup: 0, charge: 0 }; // lunge timers (chargers)
@@ -710,6 +714,9 @@ function damageCrab(c, dir) {
   if (c.hp <= 0) {
     c.dead = true; greyLeft--; addScore(150);
     gainTide(killGain * (c.kind === 'sucker' ? 1.6 : 1));   // popping a drainer restores extra
+    // In drop-loop levels a cracked shell frees its colour: 3 drops, plus
+    // every drop this crab reclaimed (stolen colour is never lost).
+    if (dropLoop) spawnColourDrops(c.x + c.w/2, c.y + 2, 3 + c.carrying.length);
     spawnBurst(c.x + c.w/2, c.y + c.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c']);
   } else {
     c.hitFlash = 22; addScore(25); c.charge = 0; c.windup = 0;   // interrupt its attack
@@ -864,6 +871,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
   if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') { keys.jump = true; keys.jumpQueued = true; }
   if (isAtk(e.key)) { keys.attack = true; keys.attackQueued = true; }
+  if (e.key === 'h' || e.key === 'H') showHit = !showHit;   // debug hitbox overlay
 });
 window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
@@ -922,7 +930,12 @@ function update() {
   if (Math.abs(p.vx) > 0.3) p.walk += 0.25;
 
   // Jump (with tiny queue so taps feel responsive)
-  if ((keys.jump || keys.jumpQueued) && p.onGround) { p.vy = -(JUMP_V + upg.jump * 1.2 + (rush > 0 ? 1.0 : 0)); p.onGround = false; }  // Jump Boost + Rush
+  // Forgiving jump: works on the ground OR within the coyote window just
+  // after walking off a ledge (kid-friendly platforming; buffer via jumpQueued).
+  if ((keys.jump || keys.jumpQueued) && (p.onGround || p.coyote > 0)) {
+    p.vy = -(JUMP_V + upg.jump * 1.2 + (rush > 0 ? 1.0 : 0));   // Jump Boost + Rush
+    p.onGround = false; p.coyote = 0;
+  }
   keys.jumpQueued = false;
 
   // Claw attack — a quick swipe in front of Pinny, with a short cooldown
@@ -942,6 +955,15 @@ function update() {
   if (p.onGround && !p.wasGround) p.squash = 8;   // landing squash
   if (p.squash > 0) p.squash--;
   p.wasGround = p.onGround;
+  if (p.onGround) p.coyote = 8; else if (p.coyote > 0) p.coyote--;   // TODO: tune coyote frames
+
+  // Animation state machine: derived from physics/actions every frame, so the
+  // renderer (code-drawn or sprite frames later) just reads p.anim.
+  p.anim = !p.onGround ? (p.vy < -0.5 ? 'jump' : 'fall')
+         : p.atk > 0 ? 'claw'
+         : Math.abs(p.vx) > 0.4 ? 'walk'
+         : p.squash > 0 ? 'land' : 'idle';
+  if (p.hurt > 55) p.anim = 'hurt';
 
   if (p.hurt > 0) p.hurt--;
   if (--p.blink < 0) p.blink = 120 + Math.random()*120;
@@ -975,8 +997,29 @@ function update() {
         c.shootCd = 150 + Math.random()*110;
       }
     } else if (c.kind !== 'sucker') {
+      // Reclaim behaviour (drop-loop levels): a grey crab that spots loose
+      // colour slowly scuttles to it and traps it in its sealed shell. The
+      // colour is NOT lost — cracking the carrier frees it again.
+      // Slow + readable on purpose; carriers hold at most 2 drops.
+      c.reclaim = null;
+      if (dropLoop && c.kind === 'grey' && c.carrying.length < 2 && c.charge <= 0 && c.windup <= 0) {
+        let best = null, bd = 95;                                // TODO: tune notice range
+        for (const d of drops) {
+          const ddx = Math.abs(d.x - (c.x + c.w/2)), ddy = Math.abs(d.y - (c.y + 8));
+          if (ddy < 42 && ddx < bd) { bd = ddx; best = d; }
+        }
+        if (best) {
+          c.reclaim = best;
+          c.vx = (best.x > c.x + c.w/2 ? 1 : -1) * 0.55;
+          if (bd < 10 && Math.abs(best.y - (c.y + 8)) < 18) {    // grabbed it
+            best.got = true; c.carrying.push(best.hue);
+            spawnBurst(best.x, best.y, ['#9a9a9a','#cfcfcf'], 8);
+          }
+        }
+      }
+
       // grey & crate: telegraphed charge/lunge toward Pinny
-      if (c.onG && c.charge <= 0 && c.windup <= 0 && c.lungeCd <= 0 && Math.abs(dxp) < 120 && sameLevel) {
+      if (!c.reclaim && c.onG && c.charge <= 0 && c.windup <= 0 && c.lungeCd <= 0 && Math.abs(dxp) < 120 && sameLevel) {
         c.windup = 26; c.dir = dxp > 0 ? 1 : -1;                 // wind up (shake)
       }
       if (c.windup === 1) { c.charge = 30; c.lungeCd = 150; }    // then dash
@@ -988,12 +1031,13 @@ function update() {
     let vx;
     if (c.charge > 0) vx = c.dir * (c.kind === 'crate' ? 2.6 : 3.0) * calm;
     else if (c.windup > 0) vx = 0;                               // freeze during wind-up
+    else if (c.reclaim) vx = (c.vx > 0 ? 1 : -1) * 0.55;         // focused scuttle to the drop
     else vx = (c.vx > 0 ? 1 : -1) * (c.kind === 'sucker' ? 0.4 : 0.7) * calm;
     c.x += vx;
     let hitWall = false;
     for (const s of solids) { if (aabb(c, s)) { if (vx>0) c.x=s.x-c.w; else c.x=s.x+s.w; hitWall = true; } }
     if (c.charge > 0) { if (hitWall) c.charge = 0; }
-    else if (hitWall || c.x < c.homeMin || c.x > c.homeMax) c.vx *= -1;
+    else if (hitWall || (!c.reclaim && (c.x < c.homeMin || c.x > c.homeMax))) c.vx *= -1;
 
     // --- gravity ---
     c.vy = (c.vy || 0) + GRAV; if (c.vy > 12) c.vy = 12;
@@ -1255,6 +1299,23 @@ function draw() {
   for (const r of restorables) drawRestoreBubble(r);
   for (const d of drops) drawDrop(d);
   drawPinny(player);
+
+  // debug hitbox overlay (H): player, claw, enemies, crystals, drop radii
+  if (showHit) {
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#00ff88'; ctx.strokeRect(player.x, player.y, player.w, player.h);
+    if (player.atk > 6) {
+      const reach = 18 + upg.claw * 8 + (tState() >= 2 ? 3 : 0) + (rush > 0 ? 5 : 0);
+      const ax = player.face > 0 ? player.x + player.w - 2 : player.x - reach + 2;
+      ctx.strokeStyle = '#ff4444'; ctx.strokeRect(ax, player.y + 2, reach, player.h - 2);
+    }
+    ctx.strokeStyle = '#ffaa00';
+    for (const c of enemies) if (!c.dead) ctx.strokeRect(c.x, c.y, c.w, c.h);
+    ctx.strokeStyle = '#c07dff';
+    for (const k of crystals) if (!k.cracked) ctx.strokeRect(k.x, k.y, k.w, k.h);
+    ctx.strokeStyle = '#4cc9f0';
+    for (const d of drops) { ctx.beginPath(); ctx.arc(d.x, d.y, 16, 0, 6.28); ctx.stroke(); }
+  }
   for (const pr of projectiles) drawProjectile(pr);
   for (const pt of particles) {
     ctx.globalAlpha = clamp01(pt.life/30);
@@ -1644,10 +1705,27 @@ function drawPinny(p) {
   if (heroSpr) {
     ctx.imageSmoothingEnabled = false;
     const sh = 30, sw = sh * heroSpr.width / heroSpr.height;
-    // the generated art faces LEFT; the game treats +x as "forward", so mirror
-    // it (per-character, in case a sprite was drawn facing the other way).
+
+    // Procedural animation driven by p.anim (until real sprite frames land):
+    // scuttling legs, walk bob + rock, jump/fall lean, idle breathing.
+    const anim = p.anim || 'idle';
+    if (p.onGround) {                                    // legs under the sprite
+      ctx.strokeStyle = '#c9791f'; ctx.lineWidth = 2;
+      const lift = Math.sin(p.walk) * (anim === 'walk' ? 2.4 : 0.6);
+      for (const dx of [-7, -2.5, 2.5]) {
+        ctx.beginPath(); ctx.moveTo(dx, 15); ctx.lineTo(dx - 3, 20 + (dx % 2 === 0 ? lift : -lift)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-dx, 15); ctx.lineTo(-dx + 3, 20 + (dx % 2 === 0 ? -lift : lift)); ctx.stroke();
+      }
+    }
+    const bobY = anim === 'walk' ? -Math.abs(Math.sin(p.walk)) * 1.8
+               : anim === 'idle' ? Math.sin(timeT * 2.2) * 0.8 : 0;
+    const tilt = anim === 'walk' ? Math.sin(p.walk) * 0.06
+               : anim === 'jump' ? -0.07 : anim === 'fall' ? 0.09 : 0;
+
     ctx.save();
-    if (CHAR_FLIP[heroKey] !== false) ctx.scale(-1, 1);
+    ctx.rotate(tilt);
+    ctx.translate(0, bobY);
+    if (CHAR_FLIP[heroKey] !== false) ctx.scale(-1, 1);  // art faces LEFT; +x is forward
     ctx.drawImage(heroSpr, -sw/2, 20 - sh, sw, sh);
     ctx.restore();
     drawClawSwipe(p);
@@ -1830,6 +1908,19 @@ function drawCrab(c) {
     ctx.fillStyle = 'rgba(255,255,255,0.18)'; roundRect(-6, 2, 6, 3, 2); ctx.fill();
     ctx.strokeStyle = 'rgba(22,20,26,0.5)'; ctx.lineWidth = 1;
     roundRect(-8, 1, 16, 11, 6); ctx.stroke();
+  }
+
+  // trapped colour drops, hardened and dull inside the sealed shell
+  if (c.carrying && c.carrying.length) {
+    for (let i = 0; i < c.carrying.length; i++) {
+      const ox = -3 + i * 6;
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = c.carrying[i];
+      ctx.beginPath(); ctx.arc(ox, 6, 2.6, 0, 6.28); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(60,60,68,0.8)'; ctx.lineWidth = 0.8;   // hardened crust
+      ctx.beginPath(); ctx.arc(ox, 6, 2.6, 0, 6.28); ctx.stroke();
+    }
   }
 
   // topper decorations (drawn above the eyes so nothing is hidden)
