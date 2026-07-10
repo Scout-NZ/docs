@@ -363,6 +363,18 @@ const ART_SPRITES = {
   mushroom: { url: ABASE+'hf_20260708_214113_eea0267a-929b-4928-aab7-1021eb0cd21c_min.webp', key:[255,0,255] },   // spotted mushroom-cap shell
   red:      { url: ABASE+'hf_20260708_214153_1aef565f-c216-4862-98ac-2583d0edb14b_min.webp', key:[255,0,255] },   // molten lava-seam shell (the shooter)
   crate:    { url: ABASE+'hf_20260708_214158_09910167-81f7-491e-81fa-fbd452f9c428_min.webp', key:[255,0,255] },   // boulder-disguise armour (2 hits)
+  // world-themed crabs (Notion Worlds outline -> creator's Higgsfield collection)
+  seaweed:  { url: ABASE+'hf_20260708_214231_61b27474-81e7-4892-a90e-12a7483cb5a2_min.webp', key:[255,0,255] },   // trailing kelp fronds
+  gear:     { url: ABASE+'hf_20260708_214229_3263d78f-d3b2-45a0-83e8-c9d3610badef_min.webp', key:[255,0,255] },   // cog-and-gear shell, wind-up key
+  coral:    { url: ABASE+'hf_20260708_214238_77738fc3-53ae-48a5-a7da-1f4b05c67cdc_min.webp', key:[255,0,255] },   // branching coral growths
+  coconut:  { url: ABASE+'hf_20260708_214201_49c4bde4-36d6-419b-a97b-2f431111dd1e_min.webp', key:[255,0,255] },   // cracked coconut shell
+  sand:     { url: ABASE+'hf_20260708_214234_3c8d7bb7-92db-4505-a80f-f52bdf55384b_min.webp', key:[255,0,255] },   // half-buried in sand
+  water:    { url: ABASE+'hf_20260708_214219_a092f927-141e-4b3c-a549-6687cf9269d1_min.webp', key:[255,0,255] },   // wobbling water body
+  choc:     { url: ABASE+'hf_20260708_214222_3479d59c-13bf-4424-83b7-59319d9ba6d0_min.webp', key:[255,0,255] },   // gold-foil chocolate
+  explorer: { url: ABASE+'hf_20260708_214122_9fc014e2-ed55-45c5-8357-9be8df9a4565_min.webp', key:[255,0,255] },   // pith helmet + satchel
+  swamp:    { url: ABASE+'hf_20260708_214108_f0095c7d-bf49-4618-8be7-5d18047924a1_min.webp', key:[255,0,255] },   // dripping bog mud
+  ash:      { url: ABASE+'hf_20260708_215416_fe9fb587-0d9d-4945-bf86-9a8536437226_min.webp', key:[255,0,255] },   // smouldering ash + embers
+  static:   { url: ABASE+'hf_20260708_215630_5dce5d56-9273-42a3-a3ee-3b86314c242b_min.webp', key:[255,0,255] },   // TV-static shell
   // playable hero sprites (generated from the crab collection)
   char_yeti:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075557_fc604099-1e0e-4e07-a44e-10b1da434350.png', key:[255,0,255] },
   char_candy: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075634_8a49e69a-1a7a-44ef-8786-4ee95553d3b8.png', key:[255,0,255] },
@@ -683,11 +695,11 @@ const LEVELS = [
 const THEMES = [
   { name:'GREY TIDE BEACH',     stage:'1-1', sky:['#4fb2e8','#9fdcf0','#ffe2ad'], hills:['#e8d5a8','#c9b183'], far:'#2d6b52', cloud:'#fff4de', sun:'#ffedb0', sunY:44,  deco:'palm',   amb:{col:'#ffe6a8',dx:0.12,dy:0.1},              moss:'#4a9e58', block:'grass', kinds:['grey'] },
   { name:'EMERALD FALLS',       stage:'1-1', sky:['#4fa3e8','#9fdcf0','#d8f3b8'], hills:['#3f9468','#2c7050'], far:'#265c49', cloud:'#ffffff', sun:'#fff3ae', sunY:40,  deco:'jungle', amb:{col:'#b8f0a8',dx:0.05,dy:0.22},            moss:'#4a9e58', block:'grass', kinds:['grey','flower','red'] },
-  { name:'CORAL GEAR COAST',    stage:'1-4', sky:['#2f86c9','#6fc0e8','#c8f0f4'], hills:['#3f93a8','#2f7185'], far:'#1f5568', cloud:'#eafaff', sun:'#fff8d0', sunY:36,  deco:'gear',   amb:{col:'#d8f6ff',dx:0,dy:-0.35},               moss:'#3fae9c', block:'stone', kinds:['grey','crate','sucker'] },
-  { name:'PALM COVE',           stage:'1-2', sky:['#4fb2e8','#9fdcf0','#ffe2ad'], hills:['#4aa878','#357c58'], far:'#2d6b52', cloud:'#fff4de', sun:'#ffedb0', sunY:46,  deco:'palm',   amb:{col:'#ffe6a8',dx:0.15,dy:0.12},             moss:'#4a9e58', block:'grass', kinds:['grey','flower','sucker'] },
-  { name:'BOX MOUNTAINS',       stage:'1-5', sky:['#3f9bd6','#8fcbe8','#c9d98f'], hills:['#7f9350','#5f7340'], far:'#4d5c31', cloud:'#f4ecd4', sun:'#fff3ae', sunY:38,  deco:'crate',  amb:{col:'#ead9a8',dx:0.1,dy:0.08},              moss:'#6f8b3a', block:'crate', kinds:['grey','crate','sucker'] },
-  { name:'MUSHROOM MARSH',      stage:'1-6', sky:['#1d1436','#45276b','#c9694a'], hills:['#38234f','#271a3a'], far:'#1e1533', cloud:'#6a4a86', sun:'#ffb46a', sunY:150, stars:true, deco:'mush', amb:{col:'#d0a4ff',dx:0.03,dy:-0.18,glow:true}, moss:'#8a4a9e', block:'stone', kinds:['grey','mushroom','sucker'] },
-  { name:'MONOCHROME WASTELAND',stage:'1-9', sky:['#2e3238','#4d545e','#78808a'], hills:['#454b54','#33383f'], far:'#2a2e35', cloud:'#9aa0a8', sun:'#e8ecf2', sunY:42,  stars:true, deco:'ruin', amb:{col:'#b9bec6',dx:0.06,dy:0.3},             moss:'#5a6a52', block:'stone', kinds:['grey','sucker','crate','mushroom'] },
+  { name:'CORAL GEAR COAST',    stage:'1-4', sky:['#2f86c9','#6fc0e8','#c8f0f4'], hills:['#3f93a8','#2f7185'], far:'#1f5568', cloud:'#eafaff', sun:'#fff8d0', sunY:36,  deco:'gear',   amb:{col:'#d8f6ff',dx:0,dy:-0.35},               moss:'#3fae9c', block:'stone', kinds:['seaweed','gear','coral'] },
+  { name:'PALM COVE',           stage:'1-2', sky:['#4fb2e8','#9fdcf0','#ffe2ad'], hills:['#4aa878','#357c58'], far:'#2d6b52', cloud:'#fff4de', sun:'#ffedb0', sunY:46,  deco:'palm',   amb:{col:'#ffe6a8',dx:0.15,dy:0.12},             moss:'#4a9e58', block:'grass', kinds:['coconut','sand','water'] },
+  { name:'BOX MOUNTAINS',       stage:'1-5', sky:['#3f9bd6','#8fcbe8','#c9d98f'], hills:['#7f9350','#5f7340'], far:'#4d5c31', cloud:'#f4ecd4', sun:'#fff3ae', sunY:38,  deco:'crate',  amb:{col:'#ead9a8',dx:0.1,dy:0.08},              moss:'#6f8b3a', block:'crate', kinds:['grey','crate','choc'] },
+  { name:'MUSHROOM MARSH',      stage:'1-6', sky:['#1d1436','#45276b','#c9694a'], hills:['#38234f','#271a3a'], far:'#1e1533', cloud:'#6a4a86', sun:'#ffb46a', sunY:150, stars:true, deco:'mush', amb:{col:'#d0a4ff',dx:0.03,dy:-0.18,glow:true}, moss:'#8a4a9e', block:'stone', kinds:['explorer','mushroom','swamp'] },
+  { name:'MONOCHROME WASTELAND',stage:'1-9', sky:['#2e3238','#4d545e','#78808a'], hills:['#454b54','#33383f'], far:'#2a2e35', cloud:'#9aa0a8', sun:'#e8ecf2', sunY:42,  stars:true, deco:'ruin', amb:{col:'#b9bec6',dx:0.06,dy:0.3},             moss:'#5a6a52', block:'stone', kinds:['grey','ash','static','sucker'] },
   { name:"ASHCLAW'S KEEP",      stage:'BOSS',sky:['#160f1e','#31213e','#5a3546'], hills:['#241a30','#180f20'], far:'#130c1b', cloud:'#4a3550', sun:'#ff9c5a', sunY:120, stars:true, deco:'keep', amb:{col:'#ff9c5a',dx:0.02,dy:-0.28,glow:true}, moss:'#6a3a4a', block:'stone', kinds:['grey'] },
 ];
 
@@ -816,11 +828,26 @@ function makePlayer(x, y) {
   return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0, atk: 0, atkCd: 0,
            squash: 0, wasGround: false, coyote: 0, anim: 'idle' };
 }
+// Every crab KIND is a themed skin over one of five proven behaviour BASES:
+//   grey     — patrolling charger that can reclaim loose colour drops
+//   crate    — armoured charger (2 hits)
+//   red      — shooter (fast pinch shot)   flower — shooter (drifting pollen)
+//   mushroom — shooter (rising spores)     sucker — drains the Colour Tide
+// The per-world kinds come from the Notion Worlds outline.
+const CRAB_BASE = {
+  grey:'grey', crate:'crate', red:'red', flower:'flower', mushroom:'mushroom', sucker:'sucker',
+  seaweed:'grey',  gear:'crate',  coral:'flower',                 // Coral Gear Coast
+  coconut:'crate', sand:'grey',   water:'red',                    // Palm Cove
+  choc:'grey',                                                    // Box Mountains
+  explorer:'red',  swamp:'sucker',                                // Mushroom Marsh
+  ash:'mushroom',  static:'red',                                  // Monochrome Wasteland
+};
 function makeCrab(x, y, kind) {
   kind = kind || 'grey';
-  return { x: x+3, y: y+6, w: 18, h: 14, kind, vx: (Math.random()<.5?-1:1)*0.7,
+  const base = CRAB_BASE[kind] || 'grey';
+  return { x: x+3, y: y+6, w: 18, h: 14, kind, base, vx: (Math.random()<.5?-1:1)*0.7,
            dead: false, wig: Math.random()*6.28, homeMin: x-TILE*2, homeMax: x+TILE*3,
-           hp: kind === 'crate' ? 2 : 1, hitFlash: 0,      // crate crabs are armoured
+           hp: base === 'crate' ? 2 : 1, hitFlash: 0,      // crate-based crabs are armoured
            carrying: [], reclaim: null,                    // colour drops this crab has trapped
            onG: false, dir: 1,
            shootCd: 90 + Math.random()*140,                 // projectile timer (shooters)
@@ -835,11 +862,11 @@ function makeBoss(x, y) {
 // A crab attack projectile (pinch / pollen / spore).
 function fireProjectile(c, dir) {
   const cx = c.x + c.w/2, cy = c.y + c.h/2;
-  if (c.kind === 'red')
+  if (c.base === 'red')
     projectiles.push({ x:cx+dir*8, y:cy,   vx:dir*2.4, vy:0,    g:0,    kind:'pinch',  r:4, life:150, bob:0 });
-  else if (c.kind === 'flower')
+  else if (c.base === 'flower')
     projectiles.push({ x:cx+dir*8, y:cy-2, vx:dir*1.4, vy:0,    g:0,    kind:'pollen', r:4, life:180, bob:Math.random()*6.28 });
-  else if (c.kind === 'mushroom')
+  else if (c.base === 'mushroom')
     projectiles.push({ x:cx+dir*6, y:cy-4, vx:dir*0.8, vy:-1.4, g:0.03, kind:'spore',  r:4, life:210, bob:Math.random()*6.28 });
 }
 
@@ -849,7 +876,7 @@ function damageCrab(c, dir) {
   c.hp--;
   if (c.hp <= 0) {
     c.dead = true; greyLeft--; addScore(150);
-    gainTide(killGain * (c.kind === 'sucker' ? 1.6 : 1));   // popping a drainer restores extra
+    gainTide(killGain * (c.base === 'sucker' ? 1.6 : 1));   // popping a drainer restores extra
     // In drop-loop levels a cracked shell frees its colour: 3 drops, plus
     // every drop this crab reclaimed (stolen colour is never lost).
     if (dropLoop) spawnColourDrops(c.x + c.w/2, c.y + 2, 3 + c.carrying.length);
@@ -1182,19 +1209,19 @@ function update() {
     const sameLevel = Math.abs((p.y + p.h) - (c.y + c.h)) < 40;
 
     // --- attacks ---
-    if (c.kind === 'red' || c.kind === 'flower' || c.kind === 'mushroom') {
+    if (c.base === 'red' || c.base === 'flower' || c.base === 'mushroom') {
       // shooters: lob a projectile at Pinny when he's near and roughly level
       if (c.onG && c.shootCd <= 0 && Math.abs(dxp) < 155 && sameLevel) {
         fireProjectile(c, dxp > 0 ? 1 : -1);
         c.shootCd = 150 + Math.random()*110;
       }
-    } else if (c.kind !== 'sucker') {
+    } else if (c.base !== 'sucker') {
       // Reclaim behaviour (drop-loop levels): a grey crab that spots loose
       // colour slowly scuttles to it and traps it in its sealed shell. The
       // colour is NOT lost — cracking the carrier frees it again.
       // Slow + readable on purpose; carriers hold at most 2 drops.
       c.reclaim = null;
-      if (dropLoop && c.kind === 'grey' && c.carrying.length < 2 && c.charge <= 0 && c.windup <= 0) {
+      if (dropLoop && c.base === 'grey' && c.carrying.length < 2 && c.charge <= 0 && c.windup <= 0) {
         let best = null, bd = 95;                                // TODO: tune notice range
         for (const d of drops) {
           const ddx = Math.abs(d.x - (c.x + c.w/2)), ddy = Math.abs(d.y - (c.y + 8));
@@ -1221,10 +1248,10 @@ function update() {
     // --- horizontal movement (a colourful world calms the crabs slightly) ---
     const calm = tState() >= 2 ? 0.9 : 1;
     let vx;
-    if (c.charge > 0) vx = c.dir * (c.kind === 'crate' ? 2.6 : 3.0) * calm;
+    if (c.charge > 0) vx = c.dir * (c.base === 'crate' ? 2.6 : 3.0) * calm;
     else if (c.windup > 0) vx = 0;                               // freeze during wind-up
     else if (c.reclaim) vx = (c.vx > 0 ? 1 : -1) * 0.55;         // focused scuttle to the drop
-    else vx = (c.vx > 0 ? 1 : -1) * (c.kind === 'sucker' ? 0.4 : 0.7) * calm;
+    else vx = (c.vx > 0 ? 1 : -1) * (c.base === 'sucker' ? 0.4 : 0.7) * calm;
     // cliff sense: patrolling crabs turn back at ledges/pits (chargers may dash off)
     if (c.onG && c.charge <= 0 && vx !== 0) {
       const aheadC = Math.floor((c.x + c.w/2 + Math.sign(vx) * 14) / TILE);
@@ -1309,7 +1336,7 @@ function update() {
 
   // ---- Colour Tide: drain pressure vs stabilisation ----
   if (!boss) {
-    const suckers = enemies.filter(c => !c.dead && c.kind === 'sucker').length;
+    const suckers = enemies.filter(c => !c.dead && c.base === 'sucker').length;
     const liveNests = nests.filter(n => !n.dead).length;
     if (!stabilised) {
       if (graceT > 0) graceT--;
@@ -2099,6 +2126,18 @@ const CRAB_PALETTE = {
   crate:   { shell:'#a9713c', shell2:'#875a2c', leg:'#6a4420', claw:'#b5813c', line:'#5a3a1a' },
   red:     { shell:'#e0592f', shell2:'#b5401f', leg:'#8a3018', claw:'#ff7a3c', line:'#7a2a12' },
   sucker:  { shell:'#a89ab0', shell2:'#877a92', leg:'#6a5f75', claw:'#9a8ca6', line:'#4d4458' },
+  // world-themed kinds (code-drawn fallback colours if the art can't load)
+  seaweed: { shell:'#5f8a4e', shell2:'#48703a', leg:'#3d5f30', claw:'#6f9e58', line:'#2e4a24' },
+  gear:    { shell:'#9a7d4e', shell2:'#7d643c', leg:'#5f4c2e', claw:'#b0905a', line:'#4a3a22' },
+  coral:   { shell:'#c98a8a', shell2:'#a86e6e', leg:'#8a5555', claw:'#daa0a0', line:'#6a4040' },
+  coconut: { shell:'#8a6a48', shell2:'#6f5438', leg:'#55402a', claw:'#9e7a54', line:'#403020' },
+  sand:    { shell:'#cbb488', shell2:'#af976c', leg:'#8a7550', claw:'#dcc79c', line:'#6a5a3c' },
+  water:   { shell:'#6fa8cf', shell2:'#5488ad', leg:'#40688a', claw:'#8fc0e0', line:'#2e4d68' },
+  choc:    { shell:'#7a5230', shell2:'#5f3f24', leg:'#48301a', claw:'#c9a227', line:'#38240f' },
+  explorer:{ shell:'#a89a6e', shell2:'#8a7d55', leg:'#6a5f40', claw:'#bcae80', line:'#4d4530' },
+  swamp:   { shell:'#6f7a4e', shell2:'#57613a', leg:'#42492c', claw:'#828f5c', line:'#303622' },
+  ash:     { shell:'#5a5a60', shell2:'#454549', leg:'#333336', claw:'#e07030', line:'#232326' },
+  static:  { shell:'#8d949c', shell2:'#70767d', leg:'#54585e', claw:'#9fd8e0', line:'#3d4045' },
 };
 
 function drawCrab(c) {
@@ -2116,8 +2155,8 @@ function drawCrab(c) {
   ctx.fillStyle = 'rgba(120,120,120,0.15)';
   ctx.beginPath(); ctx.arc(0, 8, 15, 0, 6.28); ctx.fill();
 
-  // Paint-Sucker: obvious pulsing drain aura + colour streaks being inhaled
-  if (kind === 'sucker') {
+  // Drainers (paint-sucker base): pulsing drain aura + colour streaks inhaled
+  if (c.base === 'sucker') {
     const pu = 1 + Math.sin(c.wig*1.5)*0.15;
     ctx.strokeStyle = 'rgba(150,140,160,0.5)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(0, 8, 18*pu, 0, 6.28); ctx.stroke();
