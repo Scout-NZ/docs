@@ -266,7 +266,10 @@ const TILE = 24;               // tile size in world pixels
 const GRAV = 0.55;
 const MOVE = 0.7, MAXVX = 3.2, FRICT = 0.82;
 const JUMP_V = 9.6;
-const MAX_LIVES = 5;           // heart pickups can top up to this many lives
+const MAX_HP = 5;              // hearts (per-life health) cap
+// Two tiers: HEARTS are health within a life (get hit -> lose one, knockback,
+// keep playing). LIVES restart the level (hearts emptied, or a pit fall).
+let hp = 3, maxHp = 3;
 
 worldCanvas.width = fgCanvas.width = VW; worldCanvas.height = fgCanvas.height = VH;
 
@@ -666,6 +669,7 @@ function buildLevel(idx) {
     ambient.push({ x: Math.random()*level.w, y: Math.random()*level.h, ph: Math.random()*6.28, sp: Math.random() });
   totalGrey = enemies.length; greyLeft = enemies.length;
   cam = { x: 0, y: 0 };
+  hp = maxHp;                 // hearts refill at every level start / new life
   timeT = 0; bannerT = 120;   // per-level timer + level-name banner
 
   // Colour Tide setup: worlds start drained; the Colour Boost upgrade gives a
@@ -1051,7 +1055,7 @@ function update() {
     if (c.hitFlash <= 0 && aabb(p, c)) {
       const stomped = p.vy > 1.2 && (p.y + p.h) - c.y < 12;
       if (stomped) { p.vy = -6.5; damageCrab(c, 0); }            // bounce + hurt crab
-      else return loseLife();                                    // hit from the side → restart level
+      else return damagePlayer(p.x < c.x ? -1 : 1);              // side hit → lose a heart
     }
   }
 
@@ -1061,7 +1065,7 @@ function update() {
     for (const s of solids) { if (pr.x>s.x && pr.x<s.x+s.w && pr.y>s.y && pr.y<s.y+s.h) { pr.life = 0; break; } }
     const box = { x: pr.x-pr.r, y: pr.y-pr.r, w: pr.r*2, h: pr.r*2 };
     if (atkBox && pr.life > 0 && aabb(box, atkBox)) { pr.life = 0; spawnBurst(pr.x, pr.y, ['#fff','#ffd23f']); }  // clawed away
-    if (pr.life > 0 && aabb(p, box)) { pr.life = 0; return loseLife(); }   // hit → restart level
+    if (pr.life > 0 && p.hurt <= 0 && aabb(p, box)) { pr.life = 0; return damagePlayer(pr.vx > 0 ? 1 : -1); }   // hit → lose a heart
   }
   projectiles = projectiles.filter(pr => pr.life > 0 && pr.y < level.h + 60);
 
@@ -1162,7 +1166,7 @@ function update() {
     if (!boss.dead && aabb(p, bo)) {
       const stomped = p.vy > 1.2 && (p.y + p.h) - bo.y < 16;
       if (stomped && bo.hurt <= 0) { p.vy = -8.5; hitBoss(0); }
-      else if (!stomped && bo.hurt <= 0) return loseLife();      // boss hit → restart level
+      else if (!stomped && bo.hurt <= 0) return damagePlayer(p.x < bo.x ? -1 : 1);   // boss hit → lose a heart
     }
     if (!running) return;   // boss defeat may have ended the game
   }
@@ -1177,13 +1181,13 @@ function update() {
     }
   }
 
-  // Heart pickups — grant an extra life (up to MAX_LIVES)
+  // Heart pickups — refill one heart (score bonus when already full)
   for (const h of hearts) {
     if (h.got) continue;
     h.bob += 0.1;
     if (aabb(p, {x:h.x-9, y:h.y-9, w:18, h:18})) {
       h.got = true; addScore(50);
-      if (lives < MAX_LIVES) lives++;
+      if (hp < maxHp) hp++;
       spawnBurst(h.x, h.y, ['#ff3b5c','#ff8fa3','#fff']);
     }
   }
@@ -1192,7 +1196,7 @@ function update() {
   for (const pt of particles) { pt.vy += 0.18; pt.x += pt.vx; pt.y += pt.vy; pt.life--; }
   particles = particles.filter(pt => pt.life > 0);
 
-  // Fell in a pit → restart level
+  // Fell in a pit → that's a whole life (classic platformer rule)
   if (p.y > level.h + 40) return loseLife();
 
   // Reached the flag → win (only when the world's colour is mostly back)
@@ -1212,14 +1216,28 @@ function update() {
   else cam.y = Math.max(0, Math.min(level.h - evh, p.y + p.h/2 - evh/2));
 }
 
+// Getting hit costs a HEART: knockback + brief invulnerability, play continues
+// in place. Only when the hearts run out does a LIFE go (level restarts).
+// Callers `return damagePlayer(dir)` so the frame ends cleanly either way.
+function damagePlayer(kbDir) {
+  const p = player;
+  if (p.hurt > 0) return;                    // invulnerability frames
+  hp--;
+  gainTide(-0.04);                           // getting hit lets grey creep back
+  spawnBurst(p.x + p.w/2, p.y + p.h/2, ['#bbbbbb', '#dddddd']);
+  if (hp <= 0) return loseLife();
+  p.hurt = 90;                               // flicker + i-frames
+  p.vx = (kbDir || -p.face) * 4; p.vy = -5;  // knockback
+}
+
 // Losing a life restarts the whole current level (kid-classic lives system).
-// Score, watermelons and upgrades are kept; when the last life is gone it's
-// game over. Callers `return loseLife()` so the frame stops after the rebuild.
+// Hearts refill; score, watermelons and upgrades are kept; when the last
+// life is gone it's game over.
 function loseLife() {
   lives--;
   spawnBurst(player.x + player.w/2, player.y + player.h/2, ['#ff3b5c','#ffd23f','#fff'], 18);
   if (lives <= 0) endGame(false);
-  else buildLevel(levelIndex);
+  else buildLevel(levelIndex);               // buildLevel refills hearts
 }
 
 // Land a hit on the boss (stomp or claw). dir = knockback direction (0 = none).
@@ -2217,8 +2235,16 @@ function drawHUD() {
   // Pinny portrait badge (top-left)
   drawPortrait(20, 20, 13);
 
-  // Lives (hearts)
-  for (let i=0;i<lives;i++) { ctx.fillStyle = '#ff3b5c'; heart(40 + i*13, 9, 4.4); }
+  // Hearts (health within this life): filled vs empty slots
+  for (let i=0;i<maxHp;i++) { ctx.fillStyle = 'rgba(255,255,255,0.22)'; heart(40 + i*13, 9, 4.4); }
+  for (let i=0;i<hp;i++)    { ctx.fillStyle = '#ff3b5c'; heart(40 + i*13, 9, 4.4); }
+
+  // Lives badge on the portrait (restart-the-level tokens)
+  ctx.fillStyle = 'rgba(20,12,28,0.85)';
+  ctx.beginPath(); ctx.arc(30, 29, 7, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.fillStyle = '#ffe9a8'; ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('×' + Math.max(0, lives), 30, 32);
 
   // Watermelon counter
   drawMelonIcon(43, 27, 4);
@@ -2405,7 +2431,8 @@ function startGame() {
   selectedChar = chr.id;
   curHeroSprite = chr.sprite || 'pinny';
   levelIndex = 0; score = 0; melons = 0;
-  lives = 3 + (chr.perkHeart ? 1 : 0);
+  lives = 3;
+  maxHp = 3 + (chr.perkHeart ? 1 : 0);   // Frosty's perk: an extra heart per life
   upg = { jump: chr.perkJump ? 1 : 0, claw: 0, speed: 0, colour: 0 };
   // Optional level jump: open the game with #3 in the URL to start on level 3.
   // '#test' opens the mechanics test room (colour drops, crystals, restorables).
@@ -2440,7 +2467,7 @@ const SHOP = [
   { key:'claw',  ic:'💥', nm:'Claw Power',    dc:'Longer, faster claw',                max:3, price:l=>8+l*7 },
   { key:'speed', ic:'💨', nm:'Speed Boots',   dc:'Run faster',                         max:3, price:l=>8+l*7 },
   { key:'colour',ic:'🌈', nm:'Colour Boost',  dc:'Start brighter, slow the grey drain',max:2, price:l=>10+l*8 },
-  { key:'heal',  ic:'❤️', nm:'Extra Heart',   dc:'Restore one life',                   max:0, price:()=>6 },
+  { key:'heal',  ic:'❤️', nm:'Extra Heart',   dc:'One more heart, every life',         max:0, price:()=>6 },
 ];
 
 function openShop() { renderShop(); shopScreen.classList.remove('hidden'); }
@@ -2452,7 +2479,7 @@ function renderShop() {
   for (const it of SHOP) {
     const isHeal = it.key === 'heal';
     const lvl = isHeal ? 0 : upg[it.key];
-    const maxed = isHeal ? (lives >= MAX_LIVES) : (lvl >= it.max);
+    const maxed = isHeal ? (maxHp >= MAX_HP) : (lvl >= it.max);
     const cost = it.price(lvl);
     const afford = melons >= cost;
     const card = document.createElement('div');
@@ -2471,14 +2498,14 @@ function renderShop() {
 function buy(it, card) {
   const isHeal = it.key === 'heal';
   const lvl = isHeal ? 0 : upg[it.key];
-  const maxed = isHeal ? (lives >= MAX_LIVES) : (lvl >= it.max);
+  const maxed = isHeal ? (maxHp >= MAX_HP) : (lvl >= it.max);
   const cost = it.price(lvl);
   if (maxed || melons < cost) {           // can't afford → wiggle, no purchase
     if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
     return;
   }
   melons -= cost;
-  if (isHeal) lives = Math.min(MAX_LIVES, lives + 1); else upg[it.key]++;
+  if (isHeal) { maxHp = Math.min(MAX_HP, maxHp + 1); hp = maxHp; } else upg[it.key]++;
   renderShop();
 }
 
@@ -2645,7 +2672,7 @@ function frame() {
   requestAnimationFrame(frame);
 }
 // draw an idle backdrop behind the title so the canvas isn't blank
-score = 0; melons = 0; lives = 3;
+score = 0; melons = 0; lives = 3; hp = maxHp = 3;
 buildLevel(0); applyTide(); draw();
 requestAnimationFrame(frame);
 </script>
