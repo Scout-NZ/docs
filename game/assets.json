@@ -91,6 +91,61 @@
       "role": "crate crab enemy sprite \u2014 boulder-disguise armour (grey enemy series)",
       "key_colour": "#FF00FF",
       "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214158_09910167-81f7-491e-81fa-fbd452f9c428.png"
+    },
+    {
+      "role": "world-themed enemy sprite - seaweed crab (Coral Gear Coast)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214231_61b27474-81e7-4892-a90e-12a7483cb5a2.png"
+    },
+    {
+      "role": "world-themed enemy sprite - gear crab (Coral Gear Coast)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214229_3263d78f-d3b2-45a0-83e8-c9d3610badef.png"
+    },
+    {
+      "role": "world-themed enemy sprite - coral crab (Coral Gear Coast)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214238_77738fc3-53ae-48a5-a7da-1f4b05c67cdc.png"
+    },
+    {
+      "role": "world-themed enemy sprite - coconut crab enemy (Palm Cove)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214201_49c4bde4-36d6-419b-a97b-2f431111dd1e.png"
+    },
+    {
+      "role": "world-themed enemy sprite - sand crab (Palm Cove)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214234_3c8d7bb7-92db-4505-a80f-f52bdf55384b.png"
+    },
+    {
+      "role": "world-themed enemy sprite - water crab (Palm Cove)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214219_a092f927-141e-4b3c-a549-6687cf9269d1.png"
+    },
+    {
+      "role": "world-themed enemy sprite - golden chocolate crab (Box Mountains)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214222_3479d59c-13bf-4424-83b7-59319d9ba6d0.png"
+    },
+    {
+      "role": "world-themed enemy sprite - explorer crab (Mushroom Marsh)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214122_9fc014e2-ed55-45c5-8357-9be8df9a4565.png"
+    },
+    {
+      "role": "world-themed enemy sprite - swamp crab (Mushroom Marsh)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214108_f0095c7d-bf49-4618-8be7-5d18047924a1.png"
+    },
+    {
+      "role": "world-themed enemy sprite - ash crab (Monochrome Wasteland)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_215416_fe9fb587-0d9d-4945-bf86-9a8536437226.png"
+    },
+    {
+      "role": "world-themed enemy sprite - static crab (Monochrome Wasteland)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_215630_5dce5d56-9273-42a3-a3ee-3b86314c242b.png"
     }
   ]
 }
