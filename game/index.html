@@ -408,8 +408,10 @@ const ART_FRAMES = {
   }},
   grey:  { key:[255,0,255], fps:{ idle:3, walk:6, reclaim:8 }, states:{
     idle: [ABASE+'hf_20260710_045940_b27cad50-a022-45b1-8d55-34a1da1c6619_min.webp'],
-    walk: [ABASE+'hf_20260710_045944_dddc5391-d41c-4344-bf70-d551712b86f2_min.webp',
-           ABASE+'hf_20260710_045948_14ac6d54-5a75-45da-b9e6-883b7e563cd0_min.webp'],
+    // walk frames removed: the two independently-generated poses came out at
+    // different scales (the shell visibly ballooned each step). Walking falls
+    // back to the idle frame until a consistent walk cycle is generated as
+    // EDITS of the idle frame (same crab, only the legs move).
     reclaim: [ABASE+'hf_20260710_045951_6d06f439-5635-4852-be46-2e46486823d3_min.webp'],
   }},
 };
@@ -2189,11 +2191,16 @@ function drawCrab(c) {
     ctx.imageSmoothingEnabled = false;
     const spr = crabFrame || sprites[kind];
     const sh = 22, sw = sh * spr.width / spr.height;
+    // gentle scuttle-rock so a crab on a single frame still reads as walking
+    ctx.save();
+    ctx.rotate(Math.sin(c.wig) * 0.05);
+    ctx.translate(0, -Math.abs(Math.sin(c.wig)) * 1.2);
     ctx.drawImage(spr, -sw/2, 16 - sh, sw, sh);
     if (c.hitFlash > 0 && Math.floor(c.hitFlash/3) % 2 === 0) {   // armour flash
       ctx.globalAlpha = 0.5; ctx.fillStyle = '#fff';
       ctx.fillRect(-sw/2, 16 - sh, sw, sh); ctx.globalAlpha = 1;
     }
+    ctx.restore();
     ctx.restore();
     return;
   }
