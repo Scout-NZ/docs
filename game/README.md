@@ -19,7 +19,11 @@ world becomes (watch the **COLOUR** meter at the top).
 - Grab the **watermelon slices** 🍉 for points
 - Grab a floating **heart** ❤️ for an extra life (up to 5)
 - Reach the **pink flag** to finish the level
-- You have 3 ❤️ — don't get bumped by a crab from the side, and don't fall!
+- You have **3 lives** ❤️❤️❤️. Getting bumped from the side, hit by a shot, or
+  falling in a pit costs a life and **restarts the level**; lose all three and
+  it's game over. Watermelons, stars and upgrades you've earned carry over.
+- In the **shop**, tap **anywhere on a card** to buy it — the big "YOU HAVE 🍉"
+  pill shows how many watermelons you've got.
 
 Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
 **X** (or K / J / Shift) to claw.

@@ -139,23 +139,36 @@
   @keyframes cardshake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
 
   /* ---- Shop ---- */
-  .shop-bank { font-size: clamp(15px,4vw,20px); font-weight: 800; color: #ffd23f; }
-  .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px;
-    width: min(440px, 92vw); }
-  .shop-card { pointer-events: auto; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.18);
-    border-radius: 14px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .shop-card .ic { font-size: 30px; line-height: 1; }
-  .shop-card .nm { font-weight: 800; font-size: 14px; }
-  .shop-card .dc { font-size: 11px; opacity: 0.75; text-align: center; min-height: 26px; }
+  /* Big, obvious watermelon bank so kids see what they can spend. */
+  .shop-you-have { font-size: 13px; font-weight: 800; letter-spacing: 1px;
+    color: #ffe9a8; opacity: 0.9; text-transform: uppercase; }
+  .shop-bank { pointer-events: auto; display: inline-flex; align-items: center; gap: 8px;
+    font-size: clamp(20px, 6vw, 30px); font-weight: 900; color: #3a1030;
+    background: linear-gradient(180deg,#ffe58a,#ffb347); padding: 8px 22px; border-radius: 999px;
+    border: 3px solid #fff2c4; box-shadow: 0 4px 0 #b5651d, 0 8px 16px rgba(0,0,0,0.35); }
+  .shop-bank #shopMelons { font-variant-numeric: tabular-nums; min-width: 1.2em; text-align: right; }
+  .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px;
+    width: min(460px, 94vw); }
+  /* The WHOLE card is the tap target. */
+  .shop-card { pointer-events: auto; cursor: pointer; position: relative;
+    background: rgba(255,255,255,0.10); border: 3px solid rgba(255,255,255,0.22);
+    border-radius: 16px; padding: 12px 8px 10px; display: flex; flex-direction: column;
+    align-items: center; gap: 5px; transition: transform 0.08s ease, background 0.1s ease; }
+  .shop-card.afford { border-color: #ffe58a; box-shadow: 0 4px 0 rgba(181,101,29,0.55); }
+  .shop-card.afford:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(181,101,29,0.55);
+    background: rgba(255,229,138,0.18); }
+  .shop-card.cant { opacity: 0.55; }
+  .shop-card.maxed { cursor: default; border-color: #3ddc84; }
+  .shop-card .ic { font-size: 34px; line-height: 1; }
+  .shop-card .nm { font-weight: 900; font-size: 15px; }
+  .shop-card .dc { font-size: 11px; opacity: 0.8; text-align: center; min-height: 26px; }
   .shop-card .pips { display: flex; gap: 3px; }
-  .shop-card .pip { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+  .shop-card .pip { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.2); }
   .shop-card .pip.on { background: #3ddc84; }
-  .buy { pointer-events: auto; cursor: pointer; border: none; border-radius: 999px; font-weight: 800;
-    font-size: 13px; padding: 7px 14px; color: #3a1030; background: linear-gradient(180deg,#ffe58a,#ffb347);
-    box-shadow: 0 3px 0 #b5651d; }
-  .buy:active { transform: translateY(2px); box-shadow: 0 1px 0 #b5651d; }
-  .buy:disabled { background: #6b6474; color: #b8b2c2; box-shadow: 0 3px 0 #47414f; cursor: default; }
-  .buy.max { background: #3ddc84; color: #123; box-shadow: 0 3px 0 #227a49; }
+  .buy { margin-top: 2px; border-radius: 999px; font-weight: 900; font-size: 15px;
+    padding: 6px 18px; color: #3a1030; background: linear-gradient(180deg,#ffe58a,#ffb347); }
+  .buy.max { background: #3ddc84; color: #123; }
+  .shop-card.shake { animation: cardshake 0.3s; }
 </style>
 </head>
 <body>
@@ -203,9 +216,11 @@
 
   <!-- Shop screen (between levels) -->
   <div class="screen hidden" id="shopScreen">
-    <div class="title" style="font-size:clamp(24px,6vw,42px)">CRAB SHOP</div>
-    <div class="shop-bank">🍉 <span id="shopMelons">0</span> watermelons</div>
+    <div class="title" style="font-size:clamp(22px,6vw,38px);margin-bottom:2px">CRAB SHOP</div>
+    <div class="shop-you-have">You have</div>
+    <div class="shop-bank">🍉 <span id="shopMelons">0</span></div>
     <div id="shopItems" class="shop-grid"></div>
+    <div class="hint">Tap a card to buy it!</div>
     <button class="play" id="shopContinue">CONTINUE ▶</button>
   </div>
 
@@ -383,7 +398,18 @@ function loadArt() {
     img.onerror = () => {};
     img.src = url;
   }
+  // Home scene backdrop (Pip's beach house). TODO: paste the Higgsfield 16:9
+  // house image URL here (or a local assets/backgrounds/home.png path). Until
+  // then the Home scene draws a hand-coded room, so it always works.
+  if (HOME_BG) {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => { homeBgImg = img; };
+    img.onerror = () => {};
+    img.src = HOME_BG;
+  }
 }
+const HOME_BG = '';        // <-- drop the generated house image URL here
+let homeBgImg = null;
 loadArt();
 
 /* ------------------------------------------------------------------
@@ -537,6 +563,18 @@ const THEMES = [
 let level, solids, enemies, fruits, hearts, flag, player, cam, theme, boss, projectiles;
 let totalGrey, greyLeft, score, melons, lives, levelIndex, running, particles;
 let timeT, bannerT, ambient, solidSet, nests;
+
+// --- Scene manager (modular: 'menu' -> 'home' -> 'play') ---
+// Add future scenes by giving them their own update/draw and a case in frame().
+let scene = 'menu';
+// Screen-wipe fade shared by scene transitions: fade 0 = clear, 1 = black.
+let fade = 0, fadeTarget = 0, fadeThen = null;
+function stepFade() {
+  if (fade < fadeTarget) fade = Math.min(fadeTarget, fade + 0.06);
+  else if (fade > fadeTarget) fade = Math.max(fadeTarget, fade - 0.06);
+  if (fade >= 1 && fadeThen) { const f = fadeThen; fadeThen = null; f(); }
+}
+function drawFade(c) { if (fade > 0) { c.fillStyle = `rgba(0,0,0,${fade})`; c.fillRect(0, 0, VW, VH); } }
 let upg = { jump: 0, claw: 0, speed: 0, colour: 0 };   // upgrade levels bought in the shop
 
 /* ------------------------------------------------------------------
@@ -724,6 +762,7 @@ function spawnBurst(x, y, colors, n=14) {
 function update() {
   const p = player;
 
+  stepFade();                    // scene-transition fade (e.g. fading in from Home)
   timeT += 1/60;                 // level timer (display only)
   if (bannerT > 0) bannerT--;    // level-name banner fade
 
@@ -821,12 +860,7 @@ function update() {
     if (c.hitFlash <= 0 && aabb(p, c)) {
       const stomped = p.vy > 1.2 && (p.y + p.h) - c.y < 12;
       if (stomped) { p.vy = -6.5; damageCrab(c, 0); }            // bounce + hurt crab
-      else if (p.hurt <= 0) {
-        lives--; p.hurt = 90; p.vx = (p.x < c.x ? -1 : 1) * 4; p.vy = -5;
-        gainTide(-0.04);                                   // getting hit lets grey creep back
-        spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
-        if (lives <= 0) return endGame(false);
-      }
+      else return loseLife();                                    // hit from the side → restart level
     }
   }
 
@@ -836,12 +870,7 @@ function update() {
     for (const s of solids) { if (pr.x>s.x && pr.x<s.x+s.w && pr.y>s.y && pr.y<s.y+s.h) { pr.life = 0; break; } }
     const box = { x: pr.x-pr.r, y: pr.y-pr.r, w: pr.r*2, h: pr.r*2 };
     if (atkBox && pr.life > 0 && aabb(box, atkBox)) { pr.life = 0; spawnBurst(pr.x, pr.y, ['#fff','#ffd23f']); }  // clawed away
-    if (pr.life > 0 && p.hurt <= 0 && aabb(p, box)) {
-      pr.life = 0; lives--; p.hurt = 90; p.vx = (pr.vx>0?1:-1)*3.5; p.vy = -4.5;
-      gainTide(-0.04);
-      spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
-      if (lives <= 0) return endGame(false);
-    }
+    if (pr.life > 0 && aabb(p, box)) { pr.life = 0; return loseLife(); }   // hit → restart level
   }
   projectiles = projectiles.filter(pr => pr.life > 0 && pr.y < level.h + 60);
 
@@ -929,11 +958,7 @@ function update() {
     if (!boss.dead && aabb(p, bo)) {
       const stomped = p.vy > 1.2 && (p.y + p.h) - bo.y < 16;
       if (stomped && bo.hurt <= 0) { p.vy = -8.5; hitBoss(0); }
-      else if (!stomped && bo.hurt <= 0 && p.hurt <= 0) {
-        lives--; p.hurt = 90; p.vx = (p.x < bo.x ? -1 : 1) * 5; p.vy = -5;
-        spawnBurst(p.x+p.w/2, p.y+p.h/2, ['#bbbbbb','#dddddd']);
-        if (lives <= 0) return endGame(false);
-      }
+      else if (!stomped && bo.hurt <= 0) return loseLife();      // boss hit → restart level
     }
     if (!running) return;   // boss defeat may have ended the game
   }
@@ -963,12 +988,8 @@ function update() {
   for (const pt of particles) { pt.vy += 0.18; pt.x += pt.vx; pt.y += pt.vy; pt.life--; }
   particles = particles.filter(pt => pt.life > 0);
 
-  // Fell in a pit
-  if (p.y > level.h + 40) {
-    lives--;
-    if (lives <= 0) return endGame(false);
-    respawn();
-  }
+  // Fell in a pit → restart level
+  if (p.y > level.h + 40) return loseLife();
 
   // Reached the flag → win (only when the world's colour is mostly back)
   if (flag && aabb(p, flag)) {
@@ -987,11 +1008,14 @@ function update() {
   else cam.y = Math.max(0, Math.min(level.h - evh, p.y + p.h/2 - evh/2));
 }
 
-function respawn() {
-  const map = LEVELS[levelIndex];
-  for (let r=0;r<map.length;r++) for (let c=0;c<map[r].length;c++)
-    if (map[r][c]==='P') { player.x = c*TILE; player.y = r*TILE; }
-  player.vx = 0; player.vy = 0; player.hurt = 60;
+// Losing a life restarts the whole current level (kid-classic lives system).
+// Score, watermelons and upgrades are kept; when the last life is gone it's
+// game over. Callers `return loseLife()` so the frame stops after the rebuild.
+function loseLife() {
+  lives--;
+  spawnBurst(player.x + player.w/2, player.y + player.h/2, ['#ff3b5c','#ffd23f','#fff'], 18);
+  if (lives <= 0) endGame(false);
+  else buildLevel(levelIndex);
 }
 
 // Land a hit on the boss (stomp or claw). dir = knockback direction (0 = none).
@@ -1089,6 +1113,7 @@ function draw() {
   ctx.fillStyle = vg; ctx.fillRect(0,0,VW,VH);
 
   drawHUD();
+  ctx = fgCtx; drawFade(ctx);        // scene-transition wipe (fade in from Home)
 }
 
 // Deterministic per-tile random (stable across frames, so decorations don't flicker).
@@ -1932,7 +1957,7 @@ let curHeroSprite = 'pinny';                 // which loaded sprite the hero ren
 // Whether each hero sprite's art needs mirroring so it faces the way it moves.
 // Pinny's source art faces left (mirror = true); Frosty/Lolly were generated
 // facing the other way, so they must NOT be mirrored.
-const CHAR_FLIP = { pinny:true, char_yeti:false, char_candy:false };
+const CHAR_FLIP = { pinny:true, char_yeti:true, char_candy:false };   // confirmed in play
 
 function cardBaseCanvas() {
   const c = document.createElement('canvas'); c.width = 96; c.height = 96;
@@ -1993,6 +2018,7 @@ function buildCharCards() {
 }
 
 function openCharSelect() {
+  scene = 'menu';
   titleScreen.classList.add('hidden');
   endScreen.classList.add('hidden');
   buildCharCards();
@@ -2016,6 +2042,7 @@ function startGame() {
   endScreen.classList.add('hidden');
   shopScreen.classList.add('hidden');
   charScreen.classList.add('hidden');
+  scene = 'play';
   buildLevel(levelIndex);
   running = true;
 }
@@ -2052,24 +2079,29 @@ function renderShop() {
     const lvl = isHeal ? 0 : upg[it.key];
     const maxed = isHeal ? (lives >= MAX_LIVES) : (lvl >= it.max);
     const cost = it.price(lvl);
-    const card = document.createElement('div'); card.className = 'shop-card';
+    const afford = melons >= cost;
+    const card = document.createElement('div');
+    card.className = 'shop-card' + (maxed ? ' maxed' : afford ? ' afford' : ' cant');
     const pips = isHeal ? '' :
       '<div class="pips">' + Array.from({length:it.max}, (_,i)=>`<span class="pip ${i<lvl?'on':''}"></span>`).join('') + '</div>';
-    card.innerHTML = `<div class="ic">${it.ic}</div><div class="nm">${it.nm}</div><div class="dc">${it.dc}</div>${pips}`;
-    const btn = document.createElement('button'); btn.className = 'buy';
-    if (maxed) { btn.textContent = isHeal ? 'FULL' : 'MAX'; btn.classList.add('max'); btn.disabled = true; }
-    else { btn.textContent = '🍉 ' + cost; btn.disabled = melons < cost; btn.onclick = () => buy(it); }
-    card.appendChild(btn);
+    const price = maxed ? `<div class="buy max">${isHeal ? 'FULL' : 'MAX'}</div>`
+                        : `<div class="buy">🍉 ${cost}</div>`;
+    card.innerHTML = `<div class="ic">${it.ic}</div><div class="nm">${it.nm}</div><div class="dc">${it.dc}</div>${pips}${price}`;
+    // The WHOLE card is the buy button (kid-friendly big tap target).
+    if (!maxed) card.onclick = () => buy(it, card);
     wrap.appendChild(card);
   }
 }
 
-function buy(it) {
+function buy(it, card) {
   const isHeal = it.key === 'heal';
   const lvl = isHeal ? 0 : upg[it.key];
   const maxed = isHeal ? (lives >= MAX_LIVES) : (lvl >= it.max);
   const cost = it.price(lvl);
-  if (maxed || melons < cost) return;
+  if (maxed || melons < cost) {           // can't afford → wiggle, no purchase
+    if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+    return;
+  }
   melons -= cost;
   if (isHeal) lives = Math.min(MAX_LIVES, lives + 1); else upg[it.key]++;
   renderShop();
@@ -2087,17 +2119,153 @@ function endGame(won) {
   endScreen.classList.remove('hidden');
 }
 
+/* ==================================================================
+   HOME SCENE — Pip's beach house (the DKC-style opening room).
+   Flow: Title -> Character Select -> HOME -> walk out the right door
+   -> World 1-1. Self-contained (its own build/update/draw); add more
+   scenes the same way and give them a case in frame().
+   ================================================================== */
+
+// Room geometry, derived from the current resolution so it survives rotation.
+// TODO: tune floorY (ground line) and the door position/size to the final art.
+function homeGeom() {
+  const w = Math.max(VW, Math.round(VH * 16 / 9));   // room is one 16:9 backdrop wide
+  return { w, floorY: Math.round(VH * 0.80), doorX: w - 64, doorW: 64 };
+}
+
+function enterHome() {
+  const chr = CHARACTERS.find(c => c.id === selectedChar && c.unlocked) || CHARACTERS[0];
+  selectedChar = chr.id; curHeroSprite = chr.sprite || 'pinny';
+  titleScreen.classList.add('hidden'); endScreen.classList.add('hidden');
+  shopScreen.classList.add('hidden'); charScreen.classList.add('hidden');
+  const g = homeGeom();
+  player = makePlayer(Math.round(g.w * 0.20), g.floorY - 18);   // TODO: tune Pip's spawn point
+  player.onGround = true; player.face = 1;
+  cam = { x: 0, y: 0 };
+  fade = 1; fadeTarget = 0; fadeThen = null;                    // fade in on arrival
+  scene = 'home';
+}
+
+// Walking out the door loads World 1-1 (the first real level).
+function startWorld1() {
+  startGame();            // startGame sets scene='play' and builds level 0 = World 1-1
+  fadeTarget = 0;         // ...then fade the level in (fade is still 1 from the wipe)
+}
+
+function updateHome() {
+  stepFade();
+  if (scene !== 'home') return;          // a transition fired — stop here
+  timeT += 1/60;
+  const p = player, g = homeGeom();
+  const leaving = fadeTarget >= 1;       // fading out to World 1-1: freeze input
+  if (!leaving) {
+    if (keys.left)  { p.vx -= MOVE; p.face = -1; }             // TODO: tune walk speed (MOVE/MAXVX)
+    if (keys.right) { p.vx += MOVE; p.face = 1; }
+    if (!keys.left && !keys.right) p.vx *= FRICT;
+    p.vx = Math.max(-MAXVX, Math.min(MAXVX, p.vx));
+    if (Math.abs(p.vx) > 0.3) p.walk += 0.25;                  // drives the walk animation
+    if ((keys.jump || keys.jumpQueued) && p.onGround) { p.vy = -JUMP_V; p.onGround = false; }  // jump optional
+    keys.jumpQueued = false;
+  } else { p.vx *= 0.85; }
+
+  p.vy += GRAV; if (p.vy > 12) p.vy = 12;
+  p.x += p.vx; p.y += p.vy;
+  if (p.y + p.h >= g.floorY) { if (!p.wasGround) p.squash = 8; p.y = g.floorY - p.h; p.vy = 0; p.onGround = true; }
+  else p.onGround = false;
+  if (p.squash > 0) p.squash--; p.wasGround = p.onGround;
+  if (--p.blink < 0) p.blink = 120 + Math.random()*120;
+
+  if (p.x < 8) { p.x = 8; if (p.vx < 0) p.vx = 0; }             // can't leave on the left
+  if (p.x + p.w > g.w - 6) p.x = g.w - 6 - p.w;
+
+  // Doorway trigger: reach the door moving right -> wipe to black -> World 1-1.
+  if (!leaving && p.face > 0 && p.x + p.w > g.doorX + 10) { fadeTarget = 1; fadeThen = startWorld1; }
+
+  cam.x = Math.max(0, Math.min(g.w - VW, p.x + p.w/2 - VW/2));  // keep Pip in frame
+  cam.y = 0;
+}
+
+function drawHome() {
+  const g = homeGeom();
+  worldCanvas.style.filter = 'none';                           // Home is always full colour
+  ctx = worldCtx; ctx.imageSmoothingEnabled = false;
+  ctx.save(); ctx.translate(-Math.round(cam.x), 0);
+  if (homeBgImg) ctx.drawImage(homeBgImg, 0, 0, g.w, VH);      // Higgsfield house art
+  else drawHomeRoom(g);                                        // hand-drawn fallback room
+  ctx.restore();
+
+  ctx = fgCtx; ctx.clearRect(0, 0, VW, VH);
+  ctx.save(); ctx.translate(-Math.round(cam.x), 0);
+  const ax = g.doorX + 24, ay = g.floorY - 58 + Math.sin(timeT*4)*3;   // bobbing "go" arrow
+  ctx.fillStyle = '#ffd23f'; ctx.strokeStyle = '#7a4a10'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax+15, ay+8); ctx.lineTo(ax, ay+16); ctx.closePath(); ctx.fill(); ctx.stroke();
+  drawPinny(player);
+  ctx.restore();
+  ctx.fillStyle = 'rgba(0,0,0,0.32)'; ctx.fillRect(0, VH-16, VW, 16);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('Walk out the door to start! →', VW/2, VH-5);
+  drawFade(ctx);
+}
+
+// Hand-drawn cutaway of Pip's pineapple beach house — the fallback used until
+// the Higgsfield background is wired into HOME_BG. Drawn in room space (0..g.w).
+function drawHomeRoom(g) {
+  const W = g.w, F = g.floorY, D = g.doorX;
+  const sky = ctx.createLinearGradient(0, 0, 0, F);
+  sky.addColorStop(0, '#7ec2ff'); sky.addColorStop(1, '#d4ecff');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, F);
+  // outdoors through the doorway: sea, sparkle, palm, sandy path
+  ctx.fillStyle = '#3f9bd6'; ctx.fillRect(D, F-36, W-D, 36);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  for (let i=0;i<6;i++) ctx.fillRect(D+8+i*13, F-28 + ((Math.sin(timeT*2+i)*3)|0), 6, 2);
+  ctx.fillStyle = '#6a4420'; ctx.fillRect(W-26, F-64, 5, 28);
+  ctx.fillStyle = '#2fb96a';
+  for (const a of [-0.6,-0.2,0.25,0.6]) { ctx.save(); ctx.translate(W-24, F-64); ctx.rotate(a); ctx.fillRect(0,-3,20,6); ctx.restore(); }
+  ctx.fillStyle = '#e8d199'; ctx.fillRect(D, F, W-D, VH-F);
+  // interior wall (pineapple) up to the doorway
+  ctx.fillStyle = '#e0a83c'; ctx.fillRect(0, 0, D, F);
+  ctx.fillStyle = 'rgba(150,90,20,0.22)';
+  for (let yy=10; yy<F; yy+=18) for (let xx=10; xx<D; xx+=22) { ctx.beginPath(); ctx.moveTo(xx,yy); ctx.lineTo(xx+11,yy-6); ctx.lineTo(xx+22,yy); ctx.lineTo(xx+11,yy+6); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = '#9c6b1e'; ctx.fillRect(0, F-6, D, 6);
+  // round window with sea sparkle
+  const wx = D*0.42, wy = F*0.32, wr = Math.min(28, D*0.12);
+  ctx.fillStyle = '#8fd0ff'; ctx.beginPath(); ctx.arc(wx, wy, wr, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#3f9bd6'; ctx.fillRect(wx-wr, wy, wr*2, wr);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; for (let i=0;i<4;i++) ctx.fillRect(wx-wr+7+i*7, wy+4+((Math.sin(timeT*2+i)*2)|0), 5, 2);
+  ctx.strokeStyle = '#7a4a10'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(wx, wy, wr, 0, 6.28); ctx.stroke();
+  // wooden floor
+  ctx.fillStyle = '#b5763d'; ctx.fillRect(0, F, D, VH-F);
+  ctx.strokeStyle = 'rgba(90,50,20,0.4)'; ctx.lineWidth = 1;
+  for (let xx=0; xx<D; xx+=26) { ctx.beginPath(); ctx.moveTo(xx, F); ctx.lineTo(xx, VH); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(255,240,180,0.25)'; ctx.fillRect(0, F, D, 2);
+  // leaf-bed
+  const bx = 14, bw = Math.min(66, D*0.26);
+  ctx.fillStyle = '#2fb96a'; roundRect(bx, F-14, bw, 14, 5); ctx.fill();
+  ctx.fillStyle = '#3ddc84'; roundRect(bx, F-20, bw, 10, 5); ctx.fill();
+  ctx.fillStyle = '#fff2c4'; roundRect(bx+bw-16, F-24, 14, 8, 4); ctx.fill();
+  // table of watermelon snacks
+  const tx = D*0.56, tw = Math.min(52, D*0.2);
+  ctx.fillStyle = '#8a5a2c'; ctx.fillRect(tx, F-18, tw, 4); ctx.fillRect(tx+2, F-14, 3, 14); ctx.fillRect(tx+tw-5, F-14, 3, 14);
+  for (let i=0;i<3;i++) { const mx = tx+8+i*14;
+    ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.arc(mx, F-20, 5, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ff5a5f'; ctx.beginPath(); ctx.arc(mx, F-21, 3.4, Math.PI, 0); ctx.closePath(); ctx.fill(); }
+  // shells / clutter
+  ctx.fillStyle = '#ffd9b0'; ctx.beginPath(); ctx.arc(D*0.30, F-6, 5, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffb0c0'; ctx.beginPath(); ctx.arc(D*0.74, F-5, 4, Math.PI, 0); ctx.closePath(); ctx.fill();
+  // doorway post + opening shadow
+  ctx.fillStyle = '#7a4a10'; ctx.fillRect(D-4, 0, 6, F);
+  ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(D+2, 0, 10, F);
+}
+
 document.getElementById('startBtn').addEventListener('click', openCharSelect);
 document.getElementById('againBtn').addEventListener('click', openCharSelect);
-document.getElementById('charStart').addEventListener('click', startGame);
+document.getElementById('charStart').addEventListener('click', enterHome);   // GO! -> Home scene
 document.getElementById('shopContinue').addEventListener('click', () => { shopScreen.classList.add('hidden'); advanceLevel(); });
 
 /* ---------------- Main loop ---------------- */
 function frame() {
-  if (running) update();
-  if (running || !titleScreen.classList.contains('hidden') || !endScreen.classList.contains('hidden')) {
-    if (running) draw();
-  }
+  if (scene === 'home') { updateHome(); drawHome(); }
+  else if (running) { update(); draw(); }
   requestAnimationFrame(frame);
 }
 // draw an idle backdrop behind the title so the canvas isn't blank
