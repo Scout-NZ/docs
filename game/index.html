@@ -1123,8 +1123,8 @@ function update() {
 
   // Animation state machine: derived from physics/actions every frame, so the
   // renderer (code-drawn or sprite frames later) just reads p.anim.
-  p.anim = !p.onGround ? (p.vy < -0.5 ? 'jump' : 'fall')
-         : p.atk > 0 ? 'claw'
+  p.anim = p.atk > 0 ? 'claw'          // attacking reads as the claw pose even mid-air
+         : !p.onGround ? (p.vy < -0.5 ? 'jump' : 'fall')
          : Math.abs(p.vx) > 0.4 ? 'walk'
          : p.squash > 0 ? 'land' : 'idle';
   if (p.hurt > 55) p.anim = 'hurt';
@@ -2018,6 +2018,11 @@ function drawPinny(p) {
 // Claw swipe overlay (drawn in Pinny's local space; +x is "in front" after face flip).
 function drawClawSwipe(p) {
   if (p.atk <= 0) return;
+  // The real claw frames carry the whole attack pose, so this code-drawn
+  // arm + slash arc only appears in the offline fallback, where it is the
+  // only visual telling the player a swipe happened.
+  const fa = frameArt[p._spr || curHeroSprite];
+  if (fa && fa.claw && fa.claw.length) return;
   const prog = (14 - p.atk) / 14;                            // 0 → 1 over the swing
   const reach = Math.sin(Math.min(1, prog*1.25) * Math.PI) * 12;
   ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;   // slash arc
