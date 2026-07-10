@@ -782,7 +782,7 @@ function buildLevel(idx) {
       else if (ch === 'F') flag = { x: x + 4, y: y - TILE, w: 8, h: TILE*2 };
       else if (ch === 'B') boss = makeBoss(x, y);
       else if (ch === 'N') nests.push({ x: x+2, y: y+8, w: 20, h: 16, hp: 3, maxhp: 3,
-                                        flash: 0, pulse: Math.random()*6.28, spawnT: 300, dead: false });
+                                        flash: 0, pulse: Math.random()*6.28, spawnT: 180, brood: [], dead: false });
       else if (ch === 'C') crystals.push(makeCrystal(x, y));                 // grey shell crystal
       else if (ch === 'R') restorables.push(makeRestorable(x, y, 'palm'));   // grey palm tree
       else if (ch === 'M') restorables.push(makeRestorable(x, y, 'clam'));   // clam lift (spring)
@@ -1276,13 +1276,18 @@ function update() {
     if (aabb(p, n) && p.vy > 1.2 && (p.y + p.h) - n.y < 12) {     // or stomp it
       p.vy = -6.5; damageNest(n);
     }
-    if (--n.spawnT <= 0) {                                        // hatch a grey crab
-      n.spawnT = 480;
-      if (!n.hatch || n.hatch.dead) {
-        n.hatch = makeCrab(n.x - 2, n.y - 10, 'grey');
-        enemies.push(n.hatch);
-        spawnBurst(n.x + n.w/2, n.y, ['#bbb','#888']);
-      }
+    // Hatch grey crabs steadily: up to 2 of this nest's brood alive at once,
+    // a new egg every ~4.5s, and a quick re-check when the brood is full so
+    // defeating a hatchling never leaves a long dead gap.
+    if (--n.spawnT <= 0) {
+      n.brood = (n.brood || []).filter(c => !c.dead);
+      if (n.brood.length < 2) {
+        const c = makeCrab(n.x - 2, n.y - 10, 'grey');
+        n.brood.push(c); enemies.push(c);
+        greyLeft++; totalGrey++;             // hatchlings count like any crab
+        spawnBurst(n.x + n.w/2, n.y, ['#e14fff','#bbb','#888'], 14);
+        n.spawnT = 270;
+      } else n.spawnT = 90;
     }
   }
 
@@ -1536,6 +1541,7 @@ function draw() {
   // freed colour stays vivid even in a grey world (it IS the colour)
   for (const r of restorables) if (r.state !== 'grey') drawRestorableAlive(r);
   for (const r of restorables) drawRestoreBubble(r);
+  for (const n of nests) if (!n.dead) drawNestAlert(n);   // always-colour danger cue
   for (const d of drops) drawDrop(d);
   drawPinny(player);
 
@@ -2213,12 +2219,43 @@ function drawCrab(c) {
   ctx.restore();
 }
 
+// Always-colour warning drawn on the FOREGROUND layer so nests pop out even
+// in a fully grey world: a pulsing violet danger ring, stolen-colour streaks
+// spiralling INTO the mound, glowing cracks, and a bright flash right before
+// a crab hatches so kids see it coming.
+function drawNestAlert(n) {
+  const cx = n.x + n.w/2, cy = n.y + 7, base = n.y + n.h;
+  const pu = 1 + Math.sin(n.pulse) * 0.15;
+  ctx.strokeStyle = `rgba(205,80,255,${0.45 + Math.sin(n.pulse * 2) * 0.25})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, 16 * pu, 0, 6.28); ctx.stroke();
+  for (let i = 0; i < 4; i++) {                       // colour being sucked in
+    const a = n.pulse * 1.4 + i * 1.57;
+    const d = 24 - ((n.pulse * 16 + i * 7) % 20);
+    ctx.fillStyle = DROP_HUES[i]; ctx.globalAlpha = 0.85;
+    ctx.fillRect(cx + Math.cos(a) * d - 1.5, cy + Math.sin(a) * d * 0.7 - 1.5, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#e14fff'; ctx.lineWidth = 1.4;   // glowing cracks
+  ctx.beginPath();
+  ctx.moveTo(cx - 5, base - 3); ctx.lineTo(cx - 2, base - 8);
+  ctx.moveTo(cx + 4, base - 2); ctx.lineTo(cx + 6, base - 9);
+  ctx.stroke();
+  if (n.spawnT < 60) {                                // hatch telegraph
+    const w = 1 - n.spawnT / 60;
+    ctx.strokeStyle = `rgba(255,255,255,${0.35 + 0.45 * Math.abs(Math.sin(timeT * 24))})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, 9 + w * 11, 0, 6.28); ctx.stroke();
+  }
+}
+
 // --- Grey Nest: a spiky drain-mound. Cracks appear as it takes hits. ---
 function drawNest(n) {
   const cx = n.x + n.w/2, base = n.y + n.h;
   const pu = 1 + Math.sin(n.pulse)*0.12;
   const flash = n.flash > 0 && (Math.floor(n.flash/3) % 2 === 0);
   ctx.save();
+  if (n.spawnT < 60) ctx.translate(Math.sin(timeT * 40) * 1.5, 0);   // pre-hatch shake
 
   // drain aura + rising grey wisps
   ctx.strokeStyle = 'rgba(130,130,140,0.4)'; ctx.lineWidth = 1.5;
