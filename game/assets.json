@@ -2,28 +2,80 @@
   "note": "AI-generated art for Crabby World, produced with Higgsfield using the creator's own hybrid-crab photo collection (Google Drive 'Crabs' folder) as character references. Sprites are generated on solid key-colour backgrounds and chroma-keyed at runtime by the game. If a URL is unreachable the game falls back to its built-in code-drawn art. Per-state ANIMATION FRAMES (idle/walk/jump/fall/claw/hurt and the grey crab's reclaim) have their own manifest and prompt recipe in assets/animations.json.",
   "style_formula": "chunky 16-bit pixel art with painterly shading, classic SNES platformer feel, rounded bouncy shapes with thick dark-chocolate outlines, environments in lush layered jungle greens and sky blues, hero in warm pineapple-yellow with leafy green crown and red watermelon accents contrasting the surroundings, enemies in muted stony greys, pickups glowing watermelon-red and gold, hopeful sunny storybook atmosphere with soft depth haze, high contrast between game elements and backgrounds, clean readable silhouettes, consistent side-view perspective across all assets",
   "assets": [
-    { "role": "title screen key art (embedded in index.html as a data URI; tap-to-start)", "source": "creator-provided voxel Crabby World title image" },
-    { "role": "HOME scene backdrop (Pip's beach house) — TODO: generate 16:9 in Higgsfield and put the URL in the HOME_BG constant (or save to assets/backgrounds/home.png). Falls back to a hand-drawn room until then.",
+    {
+      "role": "title screen key art (embedded in index.html as a data URI; tap-to-start)",
+      "source": "creator-provided voxel Crabby World title image"
+    },
+    {
+      "role": "HOME scene backdrop (Pip's beach house)",
       "prompt": "game background of a wide side-scrolling platformer stage showing a cutaway of Pip's pineapple beach house at sunrise, house interior on the left with a leaf-bed, a table of watermelon snacks, shells and homely clutter, and an open doorway leading onto a bright tropical path with palm trees and sea in the distance continuing off the right edge, flat walkable ground across the bottom, wide side-view, chunky 16-bit pixel art with painterly shading, SNES platformer feel, thick dark-chocolate outlines, lush jungle greens and sky blues, no characters, no UI, full 16:9 rectangular frame, no round framing",
-      "aspect_ratio": "16:9", "url": "" },
-    { "role": "hero sprite (Pinny)", "reference": "Eyeball pineapple watermelon crab.jpeg (creator's Drive)", "key_colour": "#0000FF",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045118_a7e802a5-ed24-4989-8e2d-9f01fa17d6b1.png" },
-    { "role": "vine crab enemy sprite (used for the leafy crab kind)", "reference": "Vine crab 3.png (creator's Drive)", "key_colour": "#FF00FF",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045123_9da3a942-9ed3-41be-bd9c-1f65a012bcda.png" },
-    { "role": "grey crab enemy sprite", "key_colour": "#FF00FF",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045126_8f9d7ad8-efff-453a-b1fe-bfafe7d79571.png" },
-    { "role": "paint-sucker crab sprite", "key_colour": "#00FF00",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045129_5d5c5a90-23b9-41e8-9baa-46ad88a55932.png" },
-    { "role": "playable hero sprite - Frosty (Yeti Crab)", "key_colour": "#FF00FF",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075557_fc604099-1e0e-4e07-a44e-10b1da434350.png" },
-    { "role": "playable hero sprite - Lolly (Candy Crab)", "key_colour": "#FF00FF",
-      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075634_8a49e69a-1a7a-44ef-8786-4ee95553d3b8.png" },
-    { "role": "backdrop - Emerald Falls (world 0)",        "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png" },
-    { "role": "backdrop - Coral Gear Coast (world 1)",     "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081012_7727cb3f-8383-4d2e-9623-bba5cb2f31e5.png" },
-    { "role": "backdrop - Palm Cove (world 2)",            "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081015_ec8c0109-0915-4343-9c88-489b568b94cb.png" },
-    { "role": "backdrop - Box Mountains (world 3)",        "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081018_79934582-484c-4c0f-907e-f9a6297e5956.png" },
-    { "role": "backdrop - Mushroom Marsh (world 4)",       "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png" },
-    { "role": "backdrop - Monochrome Wasteland (world 5)", "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081021_22bbb742-3086-42a1-b851-24e6648fc878.png" },
-    { "role": "backdrop - Ashclaw's Keep boss (world 6)",  "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081024_7d14b81b-c0fc-43d6-a333-af75b10dd91d.png" }
+      "aspect_ratio": "16:9",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045955_ef9db3d6-c6f5-4436-99fb-bf025f87d7ee.png"
+    },
+    {
+      "role": "hero sprite (Pinny)",
+      "reference": "Eyeball pineapple watermelon crab.jpeg (creator's Drive)",
+      "key_colour": "#0000FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045118_a7e802a5-ed24-4989-8e2d-9f01fa17d6b1.png"
+    },
+    {
+      "role": "vine crab enemy sprite (used for the leafy crab kind)",
+      "reference": "Vine crab 3.png (creator's Drive)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045123_9da3a942-9ed3-41be-bd9c-1f65a012bcda.png"
+    },
+    {
+      "role": "grey crab enemy sprite",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045126_8f9d7ad8-efff-453a-b1fe-bfafe7d79571.png"
+    },
+    {
+      "role": "paint-sucker crab sprite",
+      "key_colour": "#00FF00",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045129_5d5c5a90-23b9-41e8-9baa-46ad88a55932.png"
+    },
+    {
+      "role": "playable hero sprite - Frosty (Yeti Crab)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075557_fc604099-1e0e-4e07-a44e-10b1da434350.png"
+    },
+    {
+      "role": "playable hero sprite - Lolly (Candy Crab)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075634_8a49e69a-1a7a-44ef-8786-4ee95553d3b8.png"
+    },
+    {
+      "role": "backdrop - Emerald Falls (world 0)",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png"
+    },
+    {
+      "role": "backdrop - Coral Gear Coast (world 1)",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081012_7727cb3f-8383-4d2e-9623-bba5cb2f31e5.png"
+    },
+    {
+      "role": "backdrop - Palm Cove (world 2)",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081015_ec8c0109-0915-4343-9c88-489b568b94cb.png"
+    },
+    {
+      "role": "backdrop - Box Mountains (world 3)",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081018_79934582-484c-4c0f-907e-f9a6297e5956.png"
+    },
+    {
+      "role": "backdrop - Mushroom Marsh (world 4)",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png"
+    },
+    {
+      "role": "backdrop - Monochrome Wasteland (world 5)",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081021_22bbb742-3086-42a1-b851-24e6648fc878.png"
+    },
+    {
+      "role": "backdrop - Ashclaw's Keep boss (world 6)",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_081024_7d14b81b-c0fc-43d6-a333-af75b10dd91d.png"
+    },
+    {
+      "role": "playable hero sprite - Coco (Coconut Crab)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045959_bbff7f4c-12d0-465d-ba96-4a414f4bbe03.png"
+    }
   ]
 }

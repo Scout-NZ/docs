@@ -1,10 +1,10 @@
 {
-  "note": "Animation-frame manifest for Krabby World (Stage 2 of the World One brief). Each state lists the poses to generate in Higgsfield. Generate every frame with the SAME locked style formula below, on a solid magenta #FF00FF background, full body, side view FACING LEFT, consistent character size across frames. The game chroma-keys frames at load time and falls back to the single sprite + procedural motion for any state whose frames are missing, so partial sets are safe to ship.",
+  "note": "Animation-frame manifest for Krabby World (Stage 2 of the World One brief). Each state lists the poses to generate in Higgsfield. Generate every frame with the SAME locked style formula below, on a solid magenta #FF00FF background, full body, side view FACING LEFT, consistent character size across frames. The game chroma-keys frames at load time and falls back to the single sprite + procedural motion for any state whose frames are missing, so partial sets are safe to ship. GENERATED 2026-07-10 with nano_banana_2 (Nano Banana Pro) + the character reference images; the game loads the _min.webp variants of these URLs.",
   "how_to_generate": [
     "1. For each state frame below, build the prompt as: <subject>, <pose>, <style_formula>, 'isolated on a solid flat magenta #FF00FF background, nothing else in frame, full body visible, side view facing left, centered'.",
     "2. Generate at 1:1 aspect ratio.",
     "3. Paste the returned CDN URL into that frame's slot in the 'urls' array here.",
-    "4. Mirror the finished 'urls' arrays into ART_FRAMES in game/index.html (pinny.states / grey.states) — the loader, chroma key, and renderer are already wired.",
+    "4. Mirror the finished 'urls' arrays into ART_FRAMES in game/index.html (pinny.states / grey.states) \u2014 the loader, chroma key, and renderer are already wired.",
     "5. Check in the test room (game/index.html#test): walk, jump, claw, get hurt, and lure the crab onto a drop to see 'reclaim'."
   ],
   "style_formula": "chunky 16-bit pixel art with painterly shading, classic SNES platformer feel, rounded bouncy shapes with thick dark-chocolate outlines, environments in lush layered jungle greens and sky blues, hero in warm pineapple-yellow with leafy green crown and red watermelon accents contrasting the surroundings, enemies in muted stony greys, pickups glowing watermelon-red and gold, hopeful sunny storybook atmosphere with soft depth haze, high contrast between game elements and backgrounds, clean readable silhouettes, consistent side-view perspective across all assets",
@@ -13,47 +13,114 @@
       "subject": "cute one-eyed pineapple-watermelon crab hero, round pineapple-yellow body with diamond texture, leafy green crown, one big friendly eye, two orange claws, red watermelon-slice accents, six small legs",
       "key_colour": "#FF00FF",
       "facing": "left",
-      "reference": "existing Pinny sprite (assets.json 'hero sprite (Pinny)') — keep the same character design in every frame",
+      "reference": "existing Pinny sprite (assets.json 'hero sprite (Pinny)') \u2014 keep the same character design in every frame",
       "states": {
-        "idle": { "fps": 3,  "poses": [
-          "standing relaxed on all legs, claws resting low, eye open and bright",
-          "standing relaxed, body lifted a touch as if breathing in, eye half closed in a slow blink" ],
-          "urls": ["", ""] },
-        "walk": { "fps": 8,  "poses": [
-          "mid-scuttle with left legs forward and right legs back, claws swinging slightly",
-          "mid-scuttle with right legs forward and left legs back, body bobbed a little lower" ],
-          "urls": ["", ""] },
-        "jump": { "fps": 1,  "poses": [
-          "leaping upward, body stretched tall, legs trailing below, claws raised for balance" ],
-          "urls": [""] },
-        "fall": { "fps": 1,  "poses": [
-          "falling, body tilted slightly forward, legs tucked up, claws open wide" ],
-          "urls": [""] },
-        "claw": { "fps": 14, "poses": [
-          "winding up a claw strike, leading claw pulled back and open wide",
-          "claw snapped shut at full forward extension, motion feeling, body leaning into the strike" ],
-          "urls": ["", ""] },
-        "hurt": { "fps": 10, "poses": [
-          "knocked back, eye squeezed shut, legs splayed, claws flinched inward" ],
-          "urls": [""] }
+        "idle": {
+          "fps": 3,
+          "poses": [
+            "standing relaxed on all legs, claws resting low, eye open and bright",
+            "standing relaxed, body lifted a touch as if breathing in, eye half closed in a slow blink"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045644_188bde1a-c150-4b14-8c78-706bc9a8cb96.png",
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045648_93836654-7f6c-44e2-91a5-7161fc5ff0a9.png"
+          ]
+        },
+        "walk": {
+          "fps": 8,
+          "poses": [
+            "mid-scuttle with left legs forward and right legs back, claws swinging slightly",
+            "mid-scuttle with right legs forward and left legs back, body bobbed a little lower"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045652_3cc6d5b4-3004-4f32-8d57-49e2bb7efa22.png",
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045656_93251432-9a73-4f6b-9029-065dd5a003fe.png"
+          ]
+        },
+        "jump": {
+          "fps": 1,
+          "poses": [
+            "leaping upward, body stretched tall, legs trailing below, claws raised for balance"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045700_60f6134c-b36b-4ecb-a4b1-0ca91a6fc746.png"
+          ]
+        },
+        "fall": {
+          "fps": 1,
+          "poses": [
+            "falling, body tilted slightly forward, legs tucked up, claws open wide"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045703_08430673-05b8-492d-b6cc-b01d10be99fb.png"
+          ]
+        },
+        "claw": {
+          "fps": 14,
+          "poses": [
+            "winding up a claw strike, leading claw pulled back and open wide",
+            "claw snapped shut at full forward extension, motion feeling, body leaning into the strike"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045707_1ce627ee-9c42-4df8-be81-2b5b334ffa91.png",
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045711_0443f0e5-f51f-4114-9923-d62c7e31d34f.png"
+          ]
+        },
+        "hurt": {
+          "fps": 10,
+          "poses": [
+            "knocked back, eye squeezed shut, legs splayed, claws flinched inward"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045933_cda161ac-31f7-48c1-9d0f-9161733f47c7.png"
+          ]
+        },
+        "celebrate": {
+          "fps": 8,
+          "poses": [
+            "joyful victory hop, both claws raised high, mid-bounce"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045937_5f7c6bd9-e603-4558-8e0a-0ac48ddfca80.png"
+          ]
+        }
       }
     },
     "grey": {
       "subject": "small grey crab minion with a sealed stony rounded shell, sleepy heavy-lidded eyes, two small grey claws, muted stony greys only",
       "key_colour": "#FF00FF",
       "facing": "left",
-      "reference": "existing grey crab sprite (assets.json 'grey crab enemy sprite') — keep the same character design in every frame",
+      "reference": "existing grey crab sprite (assets.json 'grey crab enemy sprite') \u2014 keep the same character design in every frame",
       "states": {
-        "idle": { "fps": 3, "poses": [
-          "sitting heavy and still, shell settled low, eyes drooping" ],
-          "urls": [""] },
-        "walk": { "fps": 6, "poses": [
-          "trudging sideways with left legs forward, shell rocked slightly back",
-          "trudging sideways with right legs forward, shell rocked slightly forward" ],
-          "urls": ["", ""] },
-        "reclaim": { "fps": 8, "poses": [
-          "scurrying urgently with both claws reaching out to grab something, eyes suddenly wide" ],
-          "urls": [""] }
+        "idle": {
+          "fps": 3,
+          "poses": [
+            "sitting heavy and still, shell settled low, eyes drooping"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045940_b27cad50-a022-45b1-8d55-34a1da1c6619.png"
+          ]
+        },
+        "walk": {
+          "fps": 6,
+          "poses": [
+            "trudging sideways with left legs forward, shell rocked slightly back",
+            "trudging sideways with right legs forward, shell rocked slightly forward"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045944_dddc5391-d41c-4344-bf70-d551712b86f2.png",
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045948_14ac6d54-5a75-45da-b9e6-883b7e563cd0.png"
+          ]
+        },
+        "reclaim": {
+          "fps": 8,
+          "poses": [
+            "scurrying urgently with both claws reaching out to grab something, eyes suddenly wide"
+          ],
+          "urls": [
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045951_6d06f439-5635-4852-be46-2e46486823d3.png"
+          ]
+        }
       }
     }
   },
