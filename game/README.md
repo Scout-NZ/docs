@@ -106,7 +106,15 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
   `X` = ground, `P` = Pinny's start, `G` = grey crab, `o` = fruit, `F` = flag.
 - **Jump to a level:** add `#3` (etc.) to the end of the URL to start on that
   level — handy for showing off a favourite or picking up where you left off.
-- **Mechanics test room:** open the game with `#test` for the World One core-loop
-  sandbox — a grey shell crystal to crack, colour drops to collect (they can
-  never be permanently lost; strays float back into play), and a grey palm tree
-  that blooms and raises a fruit platform when fed 3 drops.
+- **World One — GREY TIDE BEACH (level 1)** is the colour-loop vertical slice:
+  crack grey shell crystals and grey crabs to free colour drops, gather them
+  (they can never be permanently lost — strays float back into play), and feed
+  3 drops to grey objects to restore them: a **palm** (raises a fruit platform),
+  a **clam lift** (becomes a springboard to a high secret ledge), and the
+  **colour gate** (grows the bridge across the pit — the required path).
+  Grey crabs try to reclaim loose drops; cracking a carrier frees everything.
+  Finishing shows a results screen (crabs cleansed / objects restored / colour %),
+  and gathering **everything** triggers the Rainbow Rush for 100% players.
+- **Mechanics test room:** open the game with `#test` for the same loop in a
+  safe sandbox (crystal, palm, reclaim crab). Press **H** on desktop for the
+  debug hitbox overlay.
