@@ -365,7 +365,8 @@ const ART_SPRITES = {
   pinny:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045118_a7e802a5-ed24-4989-8e2d-9f01fa17d6b1.png', key:[0,0,255] },
   grey:   { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045126_8f9d7ad8-efff-453a-b1fe-bfafe7d79571.png', key:[255,0,255] },
   sucker: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045129_5d5c5a90-23b9-41e8-9baa-46ad88a55932.png', key:[0,255,0] },
-  flower: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045123_9da3a942-9ed3-41be-bd9c-1f65a012bcda.png', key:[255,0,255] },
+  // Emerald Falls vine crab (creator's hybrid series) — snares with vine whips
+  flower: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_222944_39366d70-a81b-422b-aca2-e37b7cd5445c_min.webp', key:[255,0,255] },
   // enemy kinds matched from the creator's Higgsfield grey-crab-enemy series
   mushroom: { url: ABASE+'hf_20260708_214113_eea0267a-929b-4928-aab7-1021eb0cd21c_min.webp', key:[255,0,255] },   // spotted mushroom-cap shell
   red:      { url: ABASE+'hf_20260708_214153_1aef565f-c216-4862-98ac-2583d0edb14b_min.webp', key:[255,0,255] },   // molten lava-seam shell (the shooter)
@@ -864,7 +865,7 @@ function makePlayer(x, y) {
 // The per-world kinds come from the Notion Worlds outline.
 const CRAB_BASE = {
   grey:'grey', crate:'crate', red:'red', flower:'flower', mushroom:'mushroom', sucker:'sucker',
-  seaweed:'grey',  gear:'crate',  coral:'flower',                 // Coral Gear Coast
+  seaweed:'grey',  gear:'crate',  coral:'grey',                   // Coral Gear Coast (coral defends with spikes, no shots)
   coconut:'crate', sand:'grey',   water:'red',                    // Palm Cove
   choc:'grey',                                                    // Box Mountains
   explorer:'red',  swamp:'sucker',                                // Mushroom Marsh
@@ -895,6 +896,12 @@ function fireProjectile(c, dir) {
     projectiles.push({ x:cx+dir*8, y:cy,   vx:dir*2.0, vy:0,    g:0,    kind:'jet',  r:5, life:130, bob:0 });
   else if (c.kind === 'explorer')  // dust toss: blinds briefly, never wounds
     projectiles.push({ x:cx+dir*8, y:cy-3, vx:dir*1.6, vy:-1.0, g:0.05, kind:'dust', r:5, life:170, bob:Math.random()*6.28 });
+  else if (c.kind === 'flower')    // vine crab: a grabbing vine that SNARES, never wounds
+    projectiles.push({ x:cx+dir*8, y:cy+2, vx:dir*2.8, vy:0,    g:0,    kind:'vine', r:5, life:70,  bob:0 });
+  else if (c.kind === 'ash')       // ash crab: glowing embers instead of spores
+    projectiles.push({ x:cx+dir*6, y:cy-4, vx:dir*0.9, vy:-1.5, g:0.035,kind:'ember',r:4, life:200, bob:Math.random()*6.28 });
+  else if (c.kind === 'static')    // static crab: crackling zap bolt
+    projectiles.push({ x:cx+dir*8, y:cy,   vx:dir*2.8, vy:0,    g:0,    kind:'zap',  r:4, life:120, bob:0 });
   else if (c.base === 'red')
     projectiles.push({ x:cx+dir*8, y:cy,   vx:dir*2.4, vy:0,    g:0,    kind:'pinch',  r:4, life:150, bob:0 });
   else if (c.base === 'flower')
@@ -1264,11 +1271,21 @@ function update() {
           } else skipAttack = skipMove = true;           // sit perfectly still
         }
         break;
-      case 'gear':           // spins its gear shell to grind forward relentlessly
+      case 'gear': {         // spins its gear shell to grind forward relentlessly
         skipAttack = true;                               // no lunges — constant pursuit
+        const wasGrinding = !!c.grind;
         c.grind = Math.abs(dxp) < 170 && sameLevel;
-        if (c.grind) c.vx = (dxp > 0 ? 1 : -1) * Math.abs(c.vx || 0.7);
+        if (c.grind) {
+          if (!wasGrinding && c.windup <= 0) c.windup = 20;   // revs up with a shake first
+          c.vx = (dxp > 0 ? 1 : -1) * Math.abs(c.vx || 0.7);
+          if (c.windup <= 0 && c.onG && Math.random() < 0.35) // grinding kicks up sparks
+            particles.push({ x: c.x + (c.vx > 0 ? 2 : c.w - 2), y: c.y + c.h - 1,
+              vx: -(c.vx > 0 ? 1 : -1) * (0.6 + Math.random()), vy: -1 - Math.random() * 1.6,
+              life: 12 + Math.random() * 10,
+              col: ['#ffd23f','#ff9d3c','#b0905a'][(Math.random() * 3) | 0], r: 1.3 });
+        }
         break;
+      }
       case 'coral':          // sprouts sharp spikes when Pinny is near (claw it, don't stomp!)
         c.spiky = (Math.abs(dxp) < 46 && Math.abs((p.y + p.h) - (c.y + c.h)) < 34)
           ? 24 : Math.max(0, (c.spiky || 0) - 1);
@@ -1334,8 +1351,8 @@ function update() {
       case 'swamp':          // drips slowing bog patches wherever it trudges
         if (c.bogCd === undefined) c.bogCd = 80;
         if (--c.bogCd <= 0 && c.onG) {
-          c.bogCd = 220;
-          if (bogs.length < 5) bogs.push({ x: c.x - 4, y: c.y + c.h - 4, w: 26, h: 10, life: 480 });
+          c.bogCd = 150;
+          if (bogs.length < 5) bogs.push({ x: c.x - 6, y: c.y + c.h - 4, w: 30, h: 10, life: 480 });
         }
         break;
     }
@@ -1388,7 +1405,7 @@ function update() {
     else if (c.charge > 0) vx = c.dir * (c.base === 'crate' ? 2.6 : 3.0) * calm;
     else if (c.windup > 0) vx = 0;                               // freeze during wind-up
     else if (c.reclaim) vx = (c.vx > 0 ? 1 : -1) * 0.55;         // focused scuttle to the drop
-    else vx = (c.vx > 0 ? 1 : -1) * (c.grind ? 1.05 : c.base === 'sucker' ? 0.4 : 0.7) * calm;
+    else vx = (c.vx > 0 ? 1 : -1) * (c.grind ? 1.7 : c.base === 'sucker' ? 0.4 : 0.7) * calm;
     // cliff sense: patrolling crabs turn back at ledges/pits (chargers may dash off)
     if (c.onG && c.charge <= 0 && vx !== 0) {
       const aheadC = Math.floor((c.x + c.w/2 + Math.sign(vx) * 14) / TILE);
@@ -1444,6 +1461,9 @@ function update() {
       } else if (pr.kind === 'dust') {                              // explorer dust: blinds briefly
         dustT = 150;
         spawnBurst(p.x + p.w/2, p.y + 4, ['#cbb488','#af976c'], 10);
+      } else if (pr.kind === 'vine') {                              // vine snare: roots Pinny a moment
+        p.tripT = 55; p.vx = 0;
+        spawnBurst(p.x + p.w/2, p.y + p.h - 4, ['#3ddc84','#6fae4a','#b8f27f'], 12);
       } else return damagePlayer(pr.vx > 0 ? 1 : -1);               // hit → lose a heart
     }
   }
@@ -1708,7 +1728,6 @@ function draw() {
   for (const s of solids) drawBlock(s);            // ground / blocks (themed, neighbour-aware)
   for (const n of nests) if (!n.dead) drawNest(n); // grey nests (drain pressure)
   for (const k of crystals) drawCrystal(k);        // sealed grey shell crystals
-  for (const b of bogs) drawBog(b);                // swamp-crab bog patches
   for (const r of restorables) if (r.state !== 'restored') drawRestorableGrey(r);
   for (const c of enemies) if (!c.dead) drawCrab(c); // hybrid crabs (grey until rescued)
   if (boss && !boss.dead) drawBoss(boss);
@@ -1729,6 +1748,7 @@ function draw() {
   for (const r of restorables) if (r.state !== 'grey') drawRestorableAlive(r);
   for (const r of restorables) drawRestoreBubble(r);
   for (const n of nests) if (!n.dead) drawNestAlert(n);   // always-colour danger cue
+  for (const b of bogs) drawBog(b);                // bog patches pop even in a grey world
   for (const d of drops) drawDrop(d);
   drawPinny(player);
 
@@ -2088,6 +2108,24 @@ function drawProjectile(pr) {
   } else if (pr.kind === 'dust') {  // explorer dust: drifting sandy puff
     ctx.fillStyle = 'rgba(203,180,136,0.4)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 7, 0, 6.28); ctx.fill();
     ctx.fillStyle = 'rgba(175,151,108,0.8)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 4, 0, 6.28); ctx.fill();
+  } else if (pr.kind === 'vine') {  // grabbing vine: leafy segmented tendril
+    const d = pr.vx > 0 ? 1 : -1;
+    ctx.strokeStyle = '#3f7a34'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(pr.x - d*10, pr.y + Math.sin(pr.x*0.3)*2);
+    ctx.quadraticCurveTo(pr.x - d*4, pr.y - 3, pr.x, pr.y); ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.fillStyle = '#3ddc84'; ctx.beginPath(); ctx.arc(pr.x, pr.y, 3.5, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#b8f27f'; ctx.beginPath(); ctx.arc(pr.x + d*1.5, pr.y - 1, 1.4, 0, 6.28); ctx.fill();
+  } else if (pr.kind === 'ember') { // ash ember: dark flake with a glowing core
+    ctx.fillStyle = 'rgba(255,112,48,0.35)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 6, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#3a3a3e'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 3.6, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#ff7030'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 1.8, 0, 6.28); ctx.fill();
+  } else if (pr.kind === 'zap') {   // static zap: crackling cyan glitch bolt
+    const jz = (Math.floor(timeT * 30) % 2) ? 2 : -2;
+    ctx.strokeStyle = '#9fd8e0'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(pr.x - 5, pr.y + jz);
+    ctx.lineTo(pr.x - 1, pr.y - 2); ctx.lineTo(pr.x + 1, pr.y + 2); ctx.lineTo(pr.x + 5, pr.y - jz);
+    ctx.stroke();
+    ctx.fillStyle = '#e6ffff'; ctx.beginPath(); ctx.arc(pr.x, pr.y, 1.6, 0, 6.28); ctx.fill();
   } else { // spore
     ctx.fillStyle = 'rgba(176,107,255,0.4)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, pr.r+3, 0, 6.28); ctx.fill();
     ctx.fillStyle = '#b06bff'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, pr.r, 0, 6.28); ctx.fill();
@@ -2503,13 +2541,22 @@ function drawKindFx(c) {
   }
 }
 
-// Swamp-crab bog patch: murky slow-mud with a lazy bubble.
+// Swamp-crab bog patch (always-colour layer): bright toxic goo the kids
+// can't miss, with popping bubbles and a soft warning glow.
 function drawBog(b) {
-  ctx.fillStyle = 'rgba(90,100,60,0.55)';
-  ctx.beginPath(); ctx.ellipse(b.x + b.w/2, b.y + b.h - 2, b.w/2, 4, 0, 0, 6.28); ctx.fill();
-  ctx.fillStyle = 'rgba(130,143,92,0.6)';
-  const t = timeT * 3 + b.x;
-  ctx.beginPath(); ctx.arc(b.x + 6 + (Math.sin(t) + 1) * 6, b.y + b.h - 4, 1.6, 0, 6.28); ctx.fill();
+  const cx = b.x + b.w/2, cy = b.y + b.h - 2, t = timeT * 3 + b.x;
+  const fade = Math.min(1, b.life / 90);                      // dries up visibly at the end
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = 'rgba(95,170,60,0.30)';                     // glow ring
+  ctx.beginPath(); ctx.ellipse(cx, cy, b.w/2 + 3, 6, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#4f7a2e';
+  ctx.beginPath(); ctx.ellipse(cx, cy, b.w/2, 4.5, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#6fae4a';
+  ctx.beginPath(); ctx.ellipse(cx, cy - 1, b.w/2 - 3, 3, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#b8f27f';                                  // popping bubbles
+  ctx.beginPath(); ctx.arc(cx - 7 + (Math.sin(t) + 1) * 5, cy - 2 - Math.abs(Math.sin(t*1.3)) * 2, 1.7, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 4 + Math.cos(t * 0.7) * 3, cy - 1 - Math.abs(Math.cos(t)) * 1.5, 1.2, 0, 6.28); ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
 // Always-colour warning drawn on the FOREGROUND layer so nests pop out even
