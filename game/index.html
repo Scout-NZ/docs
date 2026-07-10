@@ -354,6 +354,34 @@ const ART_SPRITES = {
   char_candy: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075634_8a49e69a-1a7a-44ef-8786-4ee95553d3b8.png', key:[255,0,255] },
 };
 const ABASE = 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/';
+// Per-state animation FRAMES (Stage 2 of the World One brief). Each state
+// lists CDN frame URLs generated on the character's key colour and
+// chroma-keyed like the single sprites above. The generation checklist and
+// prompt recipe live in game/assets/animations.json — fill URLs there, then
+// mirror them here. Any state with no frames falls back to the single
+// sprite + procedural motion, so the game always works while art is missing.
+const ART_FRAMES = {
+  pinny: { key:[255,0,255], fps:{ idle:3, walk:8, claw:14, hurt:10 }, states:{
+    // idle:[u,u], walk:[u,u], jump:[u], fall:[u], claw:[u,u], hurt:[u]
+  }},
+  grey:  { key:[255,0,255], fps:{ idle:3, walk:6, reclaim:8 }, states:{
+    // idle:[u], walk:[u,u], reclaim:[u]
+  }},
+};
+const frameArt = {};   // name -> { fps, <state>: [keyed canvases] }
+
+// Current animation frame for a character, or null to use the fallback art.
+// Walk frames follow the walk phase so feet keep up with ground speed;
+// other states run on the global clock at the state's fps.
+function animFrame(name, state, phase) {
+  const fa = frameArt[name];
+  if (!fa) return null;
+  const seq = fa[state] || fa.idle;
+  if (!seq || !seq.length) return null;
+  const fps = (fa.fps && fa.fps[state]) || 6;
+  const i = phase !== undefined ? Math.floor(phase / Math.PI) : Math.floor(timeT * fps);
+  return seq[i % seq.length] || seq[0] || null;
+}
 const ART_BGS = {   // theme index -> painted parallax backdrop (Higgsfield, one per world)
   0: ABASE + 'hf_20260708_081015_ec8c0109-0915-4343-9c88-489b568b94cb.png',   // Grey Tide Beach
   1: ABASE + 'hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png',   // Emerald Falls
@@ -437,6 +465,23 @@ function loadArt() {
     img.onload = () => { bgArt[idx] = img; };
     img.onerror = () => {};
     img.src = url;
+  }
+  // Animation frames: each keyed frame slots into its exact position, so a
+  // half-loaded set still animates with whatever frames have arrived.
+  for (const [name, fset] of Object.entries(ART_FRAMES)) {
+    for (const [state, urls] of Object.entries(fset.states)) {
+      urls.forEach((url, i) => {
+        if (!url) return;
+        const img = new Image(); img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          const k = chromaKey(img, fset.key); if (!k) return;
+          const fa = frameArt[name] || (frameArt[name] = { fps: fset.fps || {} });
+          (fa[state] || (fa[state] = []))[i] = k;
+        };
+        img.onerror = () => {};
+        img.src = url;
+      });
+    }
   }
   // Home scene backdrop (Pip's beach house). TODO: paste the Higgsfield 16:9
   // house image URL here (or a local assets/backgrounds/home.png path). Until
@@ -1818,29 +1863,34 @@ function drawPinny(p) {
   ctx.scale(p.face < 0 ? -sx : sx, sy);
   ctx.translate(0, -19);
 
-  // Selected character's generated sprite (Pinny / Frosty / Lolly); falls back
-  // to the code-drawn crab below if the art isn't loaded.
+  // Selected character's generated art (Pinny / Frosty / Lolly): a per-state
+  // animation frame when one is loaded, else the single sprite with
+  // procedural motion, else the code-drawn crab below.
   const heroKey = p._spr || curHeroSprite;
-  const heroSpr = sprites[heroKey];
+  const anim = p.anim || 'idle';
+  const heroFrame = animFrame(heroKey, anim, anim === 'walk' ? p.walk : undefined);
+  const heroSpr = heroFrame || sprites[heroKey];
   if (heroSpr) {
     ctx.imageSmoothingEnabled = false;
     const sh = 30, sw = sh * heroSpr.width / heroSpr.height;
 
-    // Procedural animation driven by p.anim (until real sprite frames land):
-    // scuttling legs, walk bob + rock, jump/fall lean, idle breathing.
-    const anim = p.anim || 'idle';
-    if (p.onGround) {                                    // legs under the sprite
-      ctx.strokeStyle = '#c9791f'; ctx.lineWidth = 2;
-      const lift = Math.sin(p.walk) * (anim === 'walk' ? 2.4 : 0.6);
-      for (const dx of [-7, -2.5, 2.5]) {
-        ctx.beginPath(); ctx.moveTo(dx, 15); ctx.lineTo(dx - 3, 20 + (dx % 2 === 0 ? lift : -lift)); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-dx, 15); ctx.lineTo(-dx + 3, 20 + (dx % 2 === 0 ? -lift : lift)); ctx.stroke();
+    // Real frames carry their own legs and pose; the procedural motion only
+    // dresses up the static single-sprite fallback.
+    let bobY = 0, tilt = 0;
+    if (!heroFrame) {
+      if (p.onGround) {                                  // legs under the sprite
+        ctx.strokeStyle = '#c9791f'; ctx.lineWidth = 2;
+        const lift = Math.sin(p.walk) * (anim === 'walk' ? 2.4 : 0.6);
+        for (const dx of [-7, -2.5, 2.5]) {
+          ctx.beginPath(); ctx.moveTo(dx, 15); ctx.lineTo(dx - 3, 20 + (dx % 2 === 0 ? lift : -lift)); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-dx, 15); ctx.lineTo(-dx + 3, 20 + (dx % 2 === 0 ? -lift : lift)); ctx.stroke();
+        }
       }
+      bobY = anim === 'walk' ? -Math.abs(Math.sin(p.walk)) * 1.8
+           : anim === 'idle' ? Math.sin(timeT * 2.2) * 0.8 : 0;
+      tilt = anim === 'walk' ? Math.sin(p.walk) * 0.06
+           : anim === 'jump' ? -0.07 : anim === 'fall' ? 0.09 : 0;
     }
-    const bobY = anim === 'walk' ? -Math.abs(Math.sin(p.walk)) * 1.8
-               : anim === 'idle' ? Math.sin(timeT * 2.2) * 0.8 : 0;
-    const tilt = anim === 'walk' ? Math.sin(p.walk) * 0.06
-               : anim === 'jump' ? -0.07 : anim === 'fall' ? 0.09 : 0;
 
     ctx.save();
     ctx.rotate(tilt);
@@ -1992,10 +2042,12 @@ function drawCrab(c) {
     ctx.globalAlpha = 1;
   }
 
-  // Generated crab sprite (grey / paint-sucker / vine crab) with code fallback
-  if (sprites[kind]) {
+  // Generated crab art (grey / paint-sucker / vine crab) with code fallback:
+  // a per-state animation frame when loaded, else the single sprite.
+  const crabFrame = animFrame(kind, c.reclaim ? 'reclaim' : 'walk', c.wig);
+  if (crabFrame || sprites[kind]) {
     ctx.imageSmoothingEnabled = false;
-    const spr = sprites[kind];
+    const spr = crabFrame || sprites[kind];
     const sh = 22, sw = sh * spr.width / spr.height;
     ctx.drawImage(spr, -sw/2, 16 - sh, sw, sh);
     if (c.hitFlash > 0 && Math.floor(c.hitFlash/3) % 2 === 0) {   // armour flash
