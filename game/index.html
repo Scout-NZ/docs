@@ -564,6 +564,14 @@ let level, solids, enemies, fruits, hearts, flag, player, cam, theme, boss, proj
 let totalGrey, greyLeft, score, melons, lives, levelIndex, running, particles;
 let timeT, bannerT, ambient, solidSet, nests;
 
+// --- Colour-drop core loop (World One vertical slice) ---
+// crystals: sealed grey shells holding hardened colour; crack to free it.
+// drops: freed colour — physical, collectible, and NEVER permanently lost
+// (off-screen/stuck drops float back into play; see updateDrops).
+// restorables: grey world objects that bloom when fed colour drops.
+let crystals = [], restorables = [], drops = [], colourDrops = 0;
+let testMode = false;              // '#test' loads the mechanics test room
+
 // --- Scene manager (modular: 'menu' -> 'home' -> 'play') ---
 // Add future scenes by giving them their own update/draw and a case in frame().
 let scene = 'menu';
@@ -601,10 +609,35 @@ const TIDE_NAMES = ['GREY', 'FADED', 'COLOURFUL', 'RAINBOW RUSH!'];
 const TIDE_COLS  = ['#b9bec6', '#ffd97a', '#7de6a0', '#fff'];
 function addScore(n) { score += rush > 0 ? n * 2 : n; }   // rush doubles points
 
+/* ------------------------------------------------------------------
+   MECHANICS TEST ROOM (open the game with #test)
+   A safe sandbox for the World One core loop: move/jump platforms, one
+   grey shell crystal ('C'), one restorable palm ('R'), and the exit.
+   TODO: tune platform layout as the slice evolves.
+   ------------------------------------------------------------------ */
+const TEST_ROOM_MAP = [
+  "..............................................",
+  "..............................................",
+  "..............................................",
+  "..............................................",
+  "..............................................",
+  "..............................................",
+  "..............................................",
+  ".........o....................................",
+  "........XXXX..................................",
+  "..............................................",
+  "......XXXX....................................",
+  "..P.........C.........R..............F........",
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+];
+const TEST_THEME = Object.assign({}, THEMES[2], { name: 'GREY TIDE BEACH', stage: 'TEST' });
+
 function buildLevel(idx) {
-  const map = LEVELS[idx];
-  theme = THEMES[idx] || THEMES[THEMES.length - 1];
+  const map = testMode ? TEST_ROOM_MAP : LEVELS[idx];
+  theme = testMode ? TEST_THEME : (THEMES[idx] || THEMES[THEMES.length - 1]);
   solids = []; enemies = []; fruits = []; hearts = []; flag = null; boss = null; particles = []; projectiles = []; nests = [];
+  crystals = []; restorables = []; drops = []; colourDrops = 0;
   let gi = 0; // crab index, used to cycle through this world's crab kinds
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
@@ -619,6 +652,8 @@ function buildLevel(idx) {
       else if (ch === 'B') boss = makeBoss(x, y);
       else if (ch === 'N') nests.push({ x: x+2, y: y+8, w: 20, h: 16, hp: 3, maxhp: 3,
                                         flash: 0, pulse: Math.random()*6.28, spawnT: 300, dead: false });
+      else if (ch === 'C') crystals.push(makeCrystal(x, y));       // grey shell crystal
+      else if (ch === 'R') restorables.push(makeRestorable(x, y)); // grey palm tree
     }
   }
   level = { w: map[0].length * TILE, h: map.length * TILE };
@@ -694,6 +729,118 @@ function damageNest(n) {
   } else {
     spawnBurst(n.x + n.w/2, n.y + 2, ['#cfcfcf','#9a9a9a']);
   }
+}
+
+/* ------------------------------------------------------------------
+   COLOUR DROP LOOP — crystals crack open, colour drops burst free,
+   the player collects them, nearby grey objects bloom back to life.
+   Theme rule: this is restoration, not violence — cracking a shell
+   FREES trapped colour; nothing colourful is ever destroyed or lost.
+   ------------------------------------------------------------------ */
+const DROP_HUES = ['#ff5f8d', '#ffd23f', '#3ddc84', '#4cc9f0'];
+
+function makeCrystal(x, y) {
+  // Sealed grey shell with hardened colour inside. Two claw hits (or stomps).
+  return { x: x + 2, y: y + 4, w: 20, h: 20, hp: 2, flash: 0,
+           pulse: Math.random() * 6.28, cracked: false };
+}
+
+function makeRestorable(x, y) {
+  // A grey palm tree. Feed it `need` colour drops (stand close) to restore.
+  // TODO: tune `need` and the restore radius (see updateRestorables).
+  return { x, y, kind: 'palm', state: 'grey', need: 3, t: 0, sway: Math.random() * 6.28 };
+}
+
+function damageCrystal(k) {
+  if (k.flash > 0 || k.cracked) return;
+  k.hp--; k.flash = 18;
+  if (k.hp <= 0) {
+    k.cracked = true; addScore(200); gainTide(0.08);
+    spawnColourDrops(k.x + k.w/2, k.y + 6, 4);          // the trapped colour flows free
+    spawnBurst(k.x + k.w/2, k.y + k.h/2, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#fff'], 24);
+  } else {
+    spawnBurst(k.x + k.w/2, k.y + 4, ['#cfcfcf','#e8e8e8']);
+  }
+}
+
+function spawnColourDrops(x, y, n) {
+  for (let i = 0; i < n; i++) {
+    drops.push({ x, y, vx: (Math.random()-0.5) * 3.6, vy: -2.6 - Math.random() * 2,
+                 hue: DROP_HUES[i % DROP_HUES.length], state: 'burst',
+                 t: 0, bob: Math.random() * 6.28,
+                 homeX: x + (i - (n-1)/2) * 10, homeY: y - 10 });   // safe return spot
+  }
+}
+
+// Colour drops: juicy burst -> settle & hover -> collect. NEVER lost: drops
+// that fall out of the level, wander off, or sit uncollected too long float
+// back to their home spot beside the shell they came from.
+function updateDrops() {
+  const p = player;
+  for (const d of drops) {
+    d.t++; d.bob += 0.12;
+    if (d.state === 'burst') {
+      d.vy += 0.28; d.x += d.vx; d.y += d.vy;
+      const tc = Math.floor(d.x / TILE), tr = Math.floor((d.y + 4) / TILE);
+      if (d.vy > 0 && solidSet.has(tc + ',' + tr)) {
+        d.y = tr * TILE - 4;
+        if (Math.abs(d.vy) < 1.4) { d.state = 'idle'; d.base = d.y; }
+        else { d.vy *= -0.45; d.vx *= 0.75; }
+      }
+    } else if (d.state === 'idle') {
+      d.y = d.base + Math.sin(d.bob) * 2.5;
+    } else if (d.state === 'return') {                  // floating back into play
+      const dx = d.homeX - d.x, dy = d.homeY - d.y, m = Math.hypot(dx, dy) || 1;
+      const sp = Math.min(6, 2.5 + m * 0.01);           // farther away -> flies back faster
+      d.x += dx / m * sp; d.y += dy / m * sp;
+      if (m < 6) { d.state = 'idle'; d.base = d.homeY; }
+    }
+    // never-lost safety net (off the level, or stuck/unclaimed for ~15s)
+    if (d.state !== 'return' &&
+        (d.y > level.h + 30 || d.x < -20 || d.x > level.w + 20 || d.t > 900)) {
+      d.state = 'return'; d.t = 0;
+    }
+    // collect (generous kid-sized radius)
+    if (Math.abs(p.x + p.w/2 - d.x) < 16 && Math.abs(p.y + p.h/2 - d.y) < 18) {
+      d.got = true; colourDrops++; addScore(15); gainTide(0.015);
+      spawnBurst(d.x, d.y, [d.hue, '#fff'], 6);
+    }
+  }
+  drops = drops.filter(d => !d.got);
+}
+
+// Stand near a grey object holding enough colour drops and it blooms.
+function updateRestorables() {
+  const p = player;
+  for (const r of restorables) {
+    r.sway += 0.05;
+    if (r.state === 'restored') continue;
+    if (r.state === 'restoring') {
+      if (--r.t <= 0) { r.state = 'restored'; onRestored(r); }
+      continue;
+    }
+    const near = Math.abs(p.x + p.w/2 - (r.x + 12)) < 44 && Math.abs(p.y - r.y) < 64;  // TODO: tune radius
+    if (near && colourDrops >= r.need) {
+      colourDrops -= r.need;                     // colour flows out of Pinny into the world
+      r.state = 'restoring'; r.t = 50;
+      spawnBurst(r.x + 12, r.y - 20, DROP_HUES, 18);
+      gainTide(0.1);
+    }
+  }
+}
+
+// Restoration changes gameplay: the palm blooms AND raises a shell platform
+// with fruit beside it (a reachable new path/reward).
+function onRestored(r) {
+  addScore(300);
+  const c0 = Math.floor(r.x / TILE), r0 = Math.floor(r.y / TILE);
+  for (const dc of [2, 3]) {
+    solids.push({ x: (c0 + dc) * TILE, y: (r0 - 2) * TILE, w: TILE, h: TILE });
+    solidSet.add((c0 + dc) + ',' + (r0 - 2));
+  }
+  fruits.push({ x: (c0 + 2) * TILE + 12, y: (r0 - 3) * TILE + 12, r: 7, got: false, bob: 0 },
+              { x: (c0 + 3) * TILE + 12, y: (r0 - 3) * TILE + 12, r: 7, got: false, bob: 1 });
+  spawnBurst(r.x + 12, r.y - 30, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#fff'], 30);
 }
 
 /* ---------------- Input ---------------- */
@@ -893,6 +1040,18 @@ function update() {
     }
   }
 
+  // ---- Grey shell crystals: claw or stomp to crack the colour free ----
+  for (const k of crystals) {
+    if (k.cracked) continue;
+    k.pulse += 0.06;
+    if (k.flash > 0) k.flash--;
+    if (atkBox && aabb(k, atkBox)) damageCrystal(k);
+    if (aabb(p, k) && p.vy > 1.2 && (p.y + p.h) - k.y < 12) { p.vy = -6.5; damageCrystal(k); }
+  }
+
+  updateDrops();          // colour drops: burst, hover, collect, never lost
+  updateRestorables();    // grey objects bloom when fed colour
+
   // ---- Colour Tide: drain pressure vs stabilisation ----
   if (!boss) {
     const suckers = enemies.filter(c => !c.dead && c.kind === 'sucker').length;
@@ -904,8 +1063,9 @@ function update() {
         const drain = (suckers * 0.00045 + liveNests * 0.0003) * drainMul;
         if (drain > 0) tide = Math.max(0.05, tide - drain);       // never below the floor
       }
-      // all crabs and nests cleared -> the colour stabilises, tide floods in
-      if (liveNests === 0 && enemies.every(c => c.dead)) {
+      // all crabs, nests and crystals cleared -> colour stabilises, tide floods in
+      const hadThreats = totalGrey > 0 || nests.length > 0 || crystals.length > 0;
+      if (hadThreats && liveNests === 0 && enemies.every(c => c.dead) && crystals.every(k => k.cracked)) {
         stabilised = true;
         if (!rushUsed) { rushUsed = true; rush = 600; }           // RAINBOW RUSH!
       }
@@ -1074,6 +1234,8 @@ function draw() {
   drawAmbient();                                   // drifting leaves / bubbles / spores / ash
   for (const s of solids) drawBlock(s);            // ground / blocks (themed, neighbour-aware)
   for (const n of nests) if (!n.dead) drawNest(n); // grey nests (drain pressure)
+  for (const k of crystals) drawCrystal(k);        // sealed grey shell crystals
+  for (const r of restorables) if (r.state !== 'restored') drawPalmGrey(r);
   for (const c of enemies) if (!c.dead) drawCrab(c); // hybrid crabs (grey until rescued)
   if (boss && !boss.dead) drawBoss(boss);
   ctx.restore();
@@ -1088,6 +1250,10 @@ function draw() {
   if (flag) drawFlag(flag);
   for (const f of fruits) if (!f.got && !f.hidden) drawFruit(f);
   for (const h of hearts) if (!h.got) drawHeartPickup(h);
+  // freed colour stays vivid even in a grey world (it IS the colour)
+  for (const r of restorables) if (r.state !== 'grey') drawPalmRestored(r);
+  for (const r of restorables) drawRestoreBubble(r);
+  for (const d of drops) drawDrop(d);
   drawPinny(player);
   for (const pr of projectiles) drawProjectile(pr);
   for (const pt of particles) {
@@ -1750,6 +1916,114 @@ function drawNest(n) {
   ctx.restore();
 }
 
+// --- Grey shell crystal: hardened colour sealed inside a dull shell. ---
+function drawCrystal(k) {
+  const cx = k.x + k.w/2, base = k.y + k.h;
+  const flash = k.flash > 0 && (Math.floor(k.flash/3) % 2 === 0);
+  ctx.save();
+  ctx.fillStyle = 'rgba(10,5,20,0.22)';
+  ctx.beginPath(); ctx.ellipse(cx, base, 12, 2.6, 0, 0, 6.28); ctx.fill();
+  if (k.cracked) {                                   // open, empty shell halves
+    ctx.fillStyle = '#8d8d97';
+    ctx.beginPath(); ctx.moveTo(cx-11, base); ctx.quadraticCurveTo(cx-13, base-13, cx-3, base-9);
+    ctx.lineTo(cx-2, base); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx+11, base); ctx.quadraticCurveTo(cx+13, base-13, cx+3, base-9);
+    ctx.lineTo(cx+2, base); ctx.closePath(); ctx.fill();
+    ctx.restore(); return;
+  }
+  // sealed shell dome
+  ctx.fillStyle = flash ? '#fff' : '#83838d';
+  ctx.beginPath(); ctx.moveTo(cx-11, base);
+  ctx.quadraticCurveTo(cx-12, base-18, cx, base-19);
+  ctx.quadraticCurveTo(cx+12, base-18, cx+11, base); ctx.closePath(); ctx.fill();
+  // the dull colour crystal glinting inside (a pulsing tease of what's trapped)
+  const pu = 0.5 + Math.sin(k.pulse) * 0.2;
+  ctx.globalAlpha = pu;
+  ctx.fillStyle = '#b06bff';
+  ctx.beginPath(); ctx.moveTo(cx, base-15); ctx.lineTo(cx+5, base-8); ctx.lineTo(cx, base-3);
+  ctx.lineTo(cx-5, base-8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#e6ccff'; ctx.fillRect(cx-1.4, base-12.5, 2, 3);
+  ctx.globalAlpha = 1;
+  // seams + crack damage
+  ctx.strokeStyle = flash ? '#ddd' : '#5c5c66'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(cx-11, base); ctx.quadraticCurveTo(cx-12, base-18, cx, base-19);
+  ctx.quadraticCurveTo(cx+12, base-18, cx+11, base); ctx.stroke();
+  if (k.hp <= 1) { ctx.beginPath(); ctx.moveTo(cx-6, base-16); ctx.lineTo(cx-2, base-10); ctx.lineTo(cx-5, base-4); ctx.stroke(); }
+  ctx.restore();
+}
+
+// --- Restorable palm: grey/drooping -> restoring (shaking) -> restored. ---
+function drawPalmGrey(r) {
+  const cx = r.x + 12, base = r.y + TILE;
+  const jit = r.state === 'restoring' ? Math.sin(r.sway * 30) * 1.5 : 0;
+  ctx.save(); ctx.translate(jit, 0);
+  ctx.fillStyle = 'rgba(10,5,20,0.2)';
+  ctx.beginPath(); ctx.ellipse(cx, base, 10, 2.4, 0, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#7d7d85'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx, base); ctx.quadraticCurveTo(cx+3, base-22, cx-2, base-38); ctx.stroke();
+  ctx.strokeStyle = '#8d8d95'; ctx.lineWidth = 3;
+  for (const a of [-1.9, -1.2, 1.2, 1.9]) {          // drooping grey fronds
+    ctx.beginPath(); ctx.moveTo(cx-2, base-38);
+    ctx.quadraticCurveTo(cx-2 + a*10, base-38 + 2, cx-2 + a*13, base-24); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPalmRestored(r) {
+  const cx = r.x + 12, base = r.y + TILE;
+  const sw = Math.sin(r.sway) * 2;
+  ctx.save();
+  ctx.strokeStyle = '#8a5a2c'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(cx, base); ctx.quadraticCurveTo(cx+4, base-22, cx+sw, base-40); ctx.stroke();
+  ctx.strokeStyle = '#3ddc84'; ctx.lineWidth = 3.5;
+  for (const a of [-2.1, -1.4, -0.5, 0.5, 1.4, 2.1]) {   // lush fanned fronds
+    ctx.beginPath(); ctx.moveTo(cx+sw, base-40);
+    ctx.quadraticCurveTo(cx+sw + a*9, base-48, cx+sw + a*15, base-42 + Math.abs(a)*3); ctx.stroke();
+  }
+  ctx.fillStyle = '#6a4420';                              // coconuts
+  ctx.beginPath(); ctx.arc(cx+sw-4, base-38, 3, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx+sw+4, base-37, 3, 0, 6.28); ctx.fill();
+  if (Math.sin(r.sway*2.3) > 0.5) { ctx.fillStyle = '#fff'; ctx.fillRect(cx+sw+10, base-52, 2, 2); }
+  ctx.restore();
+}
+
+// "n / 3" bubble over a grey object when the player is close (kid-readable goal)
+function drawRestoreBubble(r) {
+  if (r.state !== 'grey') return;
+  const p = player;
+  if (Math.abs(p.x + p.w/2 - (r.x + 12)) > 70) return;
+  const cx = r.x + 12, ty = r.y - 26 + Math.sin(r.sway*2) * 2;
+  ctx.fillStyle = 'rgba(20,12,28,0.75)';
+  roundRect(cx - 20, ty - 11, 40, 18, 8); ctx.fill();
+  drawDropIcon(cx - 10, ty - 2, 1);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'left';
+  ctx.fillText(colourDrops + '/' + r.need, cx - 3, ty + 2);
+}
+
+// --- Colour drop: a glowing droplet of freed colour. ---
+function drawDrop(d) {
+  const wob = Math.sin(d.bob) * 1.2;
+  ctx.save();
+  ctx.fillStyle = d.hue; ctx.globalAlpha = 0.25;
+  ctx.beginPath(); ctx.arc(d.x, d.y + wob, 8, 0, 6.28); ctx.fill();      // glow
+  ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(d.x, d.y + wob, 4, 0, 6.28); ctx.fill();      // body
+  ctx.beginPath(); ctx.moveTo(d.x, d.y + wob - 8);                        // teardrop tip
+  ctx.lineTo(d.x + 3.2, d.y + wob - 2.5); ctx.lineTo(d.x - 3.2, d.y + wob - 2.5);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath(); ctx.arc(d.x - 1.3, d.y + wob - 1.5, 1.3, 0, 6.28); ctx.fill();
+  ctx.restore();
+}
+
+function drawDropIcon(x, y, s) {
+  ctx.fillStyle = '#4cc9f0';
+  ctx.beginPath(); ctx.arc(x, y + 2*s, 3.5*s, 0, 6.28); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x, y - 4*s); ctx.lineTo(x + 2.8*s, y); ctx.lineTo(x - 2.8*s, y);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc(x - 1*s, y + 1*s, 1*s, 0, 6.28); ctx.fill();
+}
+
 // --- General Ashclaw, the boss: a big spiky crab. ---
 function drawBoss(bo) {
   const flash = bo.hurt > 0 && (Math.floor(bo.hurt/4) % 2 === 0);
@@ -1859,6 +2133,13 @@ function drawHUD() {
   drawMelonIcon(43, 27, 4);
   ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'left';
   ctx.fillText('× ' + melons, 51, 31);
+
+  // Colour-drop counter (only in levels that use the drop loop)
+  if (crystals.length || restorables.length || drops.length || colourDrops > 0) {
+    drawDropIcon(86, 26, 1);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'left';
+    ctx.fillText('× ' + colourDrops, 93, 31);
+  }
 
   // Star score + level timer (top-right)
   ctx.textAlign = 'right';
@@ -2036,6 +2317,8 @@ function startGame() {
   lives = 3 + (chr.perkHeart ? 1 : 0);
   upg = { jump: chr.perkJump ? 1 : 0, claw: 0, speed: 0, colour: 0 };
   // Optional level jump: open the game with #3 in the URL to start on level 3.
+  // '#test' opens the mechanics test room (colour drops, crystals, restorables).
+  testMode = location.hash === '#test';
   const h = parseInt((location.hash || '').replace('#',''), 10);
   if (h >= 1 && h <= LEVELS.length) levelIndex = h - 1;
   titleScreen.classList.add('hidden');
@@ -2050,6 +2333,7 @@ function startGame() {
 // Finishing a level opens the shop (spend watermelons) before the next one.
 function finishLevel() {
   running = false;
+  if (testMode) { buildLevel(levelIndex); running = true; return; }   // test room just loops
   if (levelIndex + 1 < LEVELS.length) openShop();
   else endGame(true);
 }
@@ -2134,6 +2418,7 @@ function homeGeom() {
 }
 
 function enterHome() {
+  if (location.hash === '#test') { startGame(); return; }   // test room skips Home
   const chr = CHARACTERS.find(c => c.id === selectedChar && c.unlocked) || CHARACTERS[0];
   selectedChar = chr.id; curHeroSprite = chr.sprite || 'pinny';
   titleScreen.classList.add('hidden'); endScreen.classList.add('hidden');
