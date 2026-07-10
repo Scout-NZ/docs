@@ -414,6 +414,22 @@ const ART_FRAMES = {
            ABASE+'hf_20260710_215957_62e7e930-990b-40c0-a58f-85edb6d0ded0_min.webp'],
     reclaim: [ABASE+'hf_20260710_045951_6d06f439-5635-4852-be46-2e46486823d3_min.webp'],
   }},
+  // unique-power pose frames (leg-only/pose-only EDITS of each crab's sprite)
+  crate:   { key:[255,0,255], fps:{}, states:{
+    hiding: [ABASE+'hf_20260710_221229_46b53400-d767-4c2d-9ce0-44e6841f72da_min.webp'] }},
+  sand:    { key:[255,0,255], fps:{}, states:{
+    buried: [ABASE+'hf_20260710_221232_b8dbf63b-b047-47e4-846f-791c92a9f5eb_min.webp'] }},
+  coconut: { key:[255,0,255], fps:{}, states:{
+    roll:  [ABASE+'hf_20260710_221235_573c1a24-e81a-4e7b-8cf5-889ab2672ad2_min.webp'],
+    dizzy: [ABASE+'hf_20260710_221236_2288a4f0-3ee2-49b5-8877-89e00b2fa4b4_min.webp'] }},
+  choc:    { key:[255,0,255], fps:{}, states:{
+    melted: [ABASE+'hf_20260710_221239_d7fd0ac0-5505-4b6a-b406-b56cccc844a4_min.webp'] }},
+  ash:     { key:[255,0,255], fps:{}, states:{
+    melted: [ABASE+'hf_20260710_221241_8e759061-de84-435a-aad9-19f3dd55fdfd_min.webp'] }},
+  coral:   { key:[255,0,255], fps:{}, states:{
+    spiky: [ABASE+'hf_20260710_221244_67ecb39a-d555-4050-b703-44e0d1ea3525_min.webp'] }},
+  seaweed: { key:[255,0,255], fps:{}, states:{
+    whip: [ABASE+'hf_20260710_221246_f7c2dc17-d19b-40d3-b4c2-742de6f53ed9_min.webp'] }},
 };
 const frameArt = {};   // name -> { fps, <state>: [keyed canvases] }
 
@@ -724,6 +740,8 @@ let timeT, bannerT, ambient, solidSet, nests;
 // (off-screen/stuck drops float back into play; see updateDrops).
 // restorables: grey world objects that bloom when fed colour drops.
 let crystals = [], restorables = [], drops = [], colourDrops = 0;
+let bogs = [];                     // swamp-crab bog patches (slow the player)
+let dustT = 0;                     // explorer-crab dust: frames of blurred view
 let dropLoop = false;              // true in levels built around the colour-drop loop
 let testMode = false;              // '#test' loads the mechanics test room
 let showHit = false;               // debug hitbox overlay (press H)
@@ -794,6 +812,7 @@ function buildLevel(idx) {
   theme = testMode ? TEST_THEME : (THEMES[idx] || THEMES[THEMES.length - 1]);
   solids = []; enemies = []; fruits = []; hearts = []; flag = null; boss = null; particles = []; projectiles = []; nests = [];
   crystals = []; restorables = []; drops = []; colourDrops = 0; winT = 0;
+  bogs = []; dustT = 0;
   let gi = 0; // crab index, used to cycle through this world's crab kinds
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
@@ -834,7 +853,7 @@ function buildLevel(idx) {
 }
 
 function makePlayer(x, y) {
-  return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0, atk: 0, atkCd: 0,
+  return { x, y, w: 18, h: 18, vx: 0, vy: 0, onGround: false, face: 1, blink: 0, hurt: 0, walk: 0, atk: 0, atkCd: 0, tripT: 0,
            squash: 0, wasGround: false, coyote: 0, anim: 'idle' };
 }
 // Every crab KIND is a themed skin over one of five proven behaviour BASES:
@@ -871,7 +890,12 @@ function makeBoss(x, y) {
 // A crab attack projectile (pinch / pollen / spore).
 function fireProjectile(c, dir) {
   const cx = c.x + c.w/2, cy = c.y + c.h/2;
-  if (c.base === 'red')
+  // kind-specific shots first (unique powers from the Notion enemy outline)
+  if (c.kind === 'water')          // water jet: pushes Pinny, never wounds
+    projectiles.push({ x:cx+dir*8, y:cy,   vx:dir*2.0, vy:0,    g:0,    kind:'jet',  r:5, life:130, bob:0 });
+  else if (c.kind === 'explorer')  // dust toss: blinds briefly, never wounds
+    projectiles.push({ x:cx+dir*8, y:cy-3, vx:dir*1.6, vy:-1.0, g:0.05, kind:'dust', r:5, life:170, bob:Math.random()*6.28 });
+  else if (c.base === 'red')
     projectiles.push({ x:cx+dir*8, y:cy,   vx:dir*2.4, vy:0,    g:0,    kind:'pinch',  r:4, life:150, bob:0 });
   else if (c.base === 'flower')
     projectiles.push({ x:cx+dir*8, y:cy-2, vx:dir*1.4, vy:0,    g:0,    kind:'pollen', r:4, life:180, bob:Math.random()*6.28 });
@@ -882,9 +906,14 @@ function fireProjectile(c, dir) {
 // Hurt a crab (stomp or claw). dir = knockback direction, 0 = none.
 // Armoured crabs (crate) survive the first hit and flash instead.
 function damageCrab(c, dir) {
+  if (c.dizzy > 0) c.hp = 1;                    // cracked-open coconut: one hit finishes it
   c.hp--;
   if (c.hp <= 0) {
     c.dead = true; greyLeft--; addScore(150);
+    if (c.kind === 'mushroom')                  // puffs out a spore fan when cracked
+      for (const [dvx, dvy] of [[-1.5,-2.4],[0.2,-3.0],[1.5,-2.4]])
+        projectiles.push({ x: c.x + c.w/2, y: c.y - 2, vx: dvx, vy: dvy, g: 0.06,
+                           kind: 'spore', r: 4, life: 150, grace: 26, bob: Math.random()*6.28 });
     gainTide(killGain * (c.base === 'sucker' ? 1.6 : 1));   // popping a drainer restores extra
     // In drop-loop levels a cracked shell frees its colour: 3 drops, plus
     // every drop this crab reclaimed (stolen colour is never lost).
@@ -1155,6 +1184,12 @@ function update() {
   if (!keys.left && !keys.right) p.vx *= FRICT;
   const maxvx = MAXVX + upg.speed * 0.7 + (rush > 0 ? 0.6 : 0);   // Speed Boots + Rainbow Rush
   p.vx = Math.max(-maxvx, Math.min(maxvx, p.vx));
+  // seaweed trip: controls are sluggish while Pinny stumbles
+  if (p.tripT > 0) { p.tripT--; p.vx = clampv(p.vx, -1.3, 1.3); }
+  // swamp bog patches: wading through the muck slows Pinny right down
+  for (const b of bogs) { b.life--; if (b.life > 0 && aabb(p, b)) p.vx *= 0.55; }
+  bogs = bogs.filter(b => b.life > 0);
+  if (dustT > 0) dustT--;                                          // explorer dust settles
   if (Math.abs(p.vx) > 0.3) p.walk += 0.25;
 
   // Jump (with tiny queue so taps feel responsive)
@@ -1217,8 +1252,97 @@ function update() {
     const dxp = (p.x + p.w/2) - (c.x + c.w/2);
     const sameLevel = Math.abs((p.y + p.h) - (c.y + c.h)) < 40;
 
+    // --- unique kind powers (each crab fights the way the Notion outline says) ---
+    let skipAttack = false, skipMove = false;
+    c.noContact = false;
+    switch (c.kind) {
+      case 'crate':          // hides inside its crate until Pinny gets close
+        if (!c.popped) {
+          if (Math.abs(dxp) < 70 && sameLevel) {
+            c.popped = true; c.windup = 22; c.dir = dxp > 0 ? 1 : -1;
+            spawnBurst(c.x + c.w/2, c.y + 4, ['#a9713c','#875a2c','#fff'], 12);
+          } else skipAttack = skipMove = true;           // sit perfectly still
+        }
+        break;
+      case 'gear':           // spins its gear shell to grind forward relentlessly
+        skipAttack = true;                               // no lunges — constant pursuit
+        c.grind = Math.abs(dxp) < 170 && sameLevel;
+        if (c.grind) c.vx = (dxp > 0 ? 1 : -1) * Math.abs(c.vx || 0.7);
+        break;
+      case 'coral':          // sprouts sharp spikes when Pinny is near (claw it, don't stomp!)
+        c.spiky = (Math.abs(dxp) < 46 && Math.abs((p.y + p.h) - (c.y + c.h)) < 34)
+          ? 24 : Math.max(0, (c.spiky || 0) - 1);
+        break;
+      case 'coconut':        // curls up and ROLLS, then lies cracked open and dizzy
+        if (c.dizzy > 0) { c.dizzy--; skipAttack = skipMove = true; }
+        else if (c.charge === 1) c.dizzy = 80;           // roll just ended -> vulnerable
+        break;
+      case 'sand':           // burrows under the sand and pops up beneath your feet
+        if (c.buried === undefined) { c.buried = true; c.phaseT = 50; }
+        if (c.buried) {
+          skipAttack = true; c.noContact = true;
+          if (Math.abs(dxp) > 8) c.vx = (dxp > 0 ? 1 : -1) * Math.abs(c.vx || 0.7);
+          if (c.phaseT > 0) c.phaseT--;
+          if (c.phaseT <= 0 && Math.abs(dxp) < 46 && sameLevel) {
+            c.buried = false; c.phaseT = 300; c.windup = 24; c.dir = dxp > 0 ? 1 : -1;
+            spawnBurst(c.x + c.w/2, c.y + 10, ['#cbb488','#af976c','#8a7550'], 16);
+          }
+        } else if (--c.phaseT <= 0) {
+          c.buried = true; c.phaseT = 50;
+          spawnBurst(c.x + c.w/2, c.y + 10, ['#cbb488','#af976c'], 8);
+        }
+        break;
+      case 'choc':           // melts into a gooey puddle, then reforms
+      case 'ash': {          // crumbles into a drifting ash cloud, then reforms
+        if (c.phaseT === undefined) c.phaseT = 200 + Math.random() * 120;
+        if (c.melted) {
+          skipAttack = true; c.noContact = true;
+          if (c.kind === 'choc') skipMove = true;        // puddles stay put; ash drifts
+          if (--c.phaseT <= 0) { c.melted = false; c.phaseT = 260 + Math.random() * 120; }
+        } else if (--c.phaseT <= 0) {
+          c.melted = true; c.phaseT = 110;
+          spawnBurst(c.x + c.w/2, c.y + 8,
+            c.kind === 'choc' ? ['#7a5230','#c9a227'] : ['#5a5a60','#e07030'], 10);
+        }
+        break;
+      }
+      case 'static':         // flickers like TV static: short teleport hops closer
+        if (c.blinkCd === undefined) c.blinkCd = 120;
+        if (--c.blinkCd <= 0 && Math.abs(dxp) < 150 && sameLevel) {
+          c.blinkCd = 150 + Math.random() * 80;
+          const nx = c.x + (dxp > 0 ? 1 : -1) * 34;
+          const tc = Math.floor((nx + c.w/2) / TILE), tr = Math.floor((c.y + c.h + 6) / TILE);
+          if (solidSet.has(tc + ',' + tr)) {             // only blink onto solid ground
+            spawnBurst(c.x + c.w/2, c.y + 8, ['#9fd8e0','#ff5fd0','#b8ffb0'], 8);
+            c.x = nx;
+            spawnBurst(c.x + c.w/2, c.y + 8, ['#9fd8e0','#ff5fd0','#b8ffb0'], 8);
+          }
+        }
+        break;
+      case 'seaweed':        // whips seaweed fronds to trip Pinny up (no bite)
+        skipAttack = true;                               // the whip replaces the charge
+        if (c.whip > 0) c.whip--;
+        if (c.whip === 8 && Math.abs(dxp) < 46 && Math.abs((p.y + p.h) - (c.y + c.h)) < 28) {
+          p.tripT = 45; p.vx = (dxp > 0 ? 1 : -1) * 2.4; // stumble away, controls sluggish
+          spawnBurst(p.x + p.w/2, p.y + p.h - 2, ['#5f8a4e','#6f9e58','#8fbf74'], 10);
+        }
+        if (!(c.whip > 0) && c.lungeCd <= 0 && Math.abs(dxp) < 42 && sameLevel) {
+          c.whip = 16; c.lungeCd = 130;                  // wind the fronds up (telegraph)
+          c.dir = dxp > 0 ? 1 : -1;
+        }
+        break;
+      case 'swamp':          // drips slowing bog patches wherever it trudges
+        if (c.bogCd === undefined) c.bogCd = 80;
+        if (--c.bogCd <= 0 && c.onG) {
+          c.bogCd = 220;
+          if (bogs.length < 5) bogs.push({ x: c.x - 4, y: c.y + c.h - 4, w: 26, h: 10, life: 480 });
+        }
+        break;
+    }
+
     // --- attacks ---
-    if (c.base === 'red' || c.base === 'flower' || c.base === 'mushroom') {
+    if (skipAttack) { /* this kind's power replaces the base attack this frame */ }
+    else if (c.base === 'red' || c.base === 'flower' || c.base === 'mushroom') {
       // shooters: lob a projectile at Pinny when he's near and roughly level
       if (c.onG && c.shootCd <= 0 && Math.abs(dxp) < 155 && sameLevel) {
         fireProjectile(c, dxp > 0 ? 1 : -1);
@@ -1250,17 +1374,21 @@ function update() {
       if (!c.reclaim && c.onG && c.charge <= 0 && c.windup <= 0 && c.lungeCd <= 0 && Math.abs(dxp) < 120 && sameLevel) {
         c.windup = 26; c.dir = dxp > 0 ? 1 : -1;                 // wind up (shake)
       }
-      if (c.windup === 1) { c.charge = 30; c.lungeCd = 150; }    // then dash
+      if (c.windup === 1) {                                      // then dash
+        c.charge = c.kind === 'coconut' ? 55 : 30;               // coconuts ROLL much further
+        c.lungeCd = 150;
+      }
     }
     // (Paint-Suckers don't attack — their threat is the constant colour drain.)
 
     // --- horizontal movement (a colourful world calms the crabs slightly) ---
     const calm = tState() >= 2 ? 0.9 : 1;
     let vx;
-    if (c.charge > 0) vx = c.dir * (c.base === 'crate' ? 2.6 : 3.0) * calm;
+    if (skipMove) vx = 0;                                        // hiding / dizzy / melted still
+    else if (c.charge > 0) vx = c.dir * (c.base === 'crate' ? 2.6 : 3.0) * calm;
     else if (c.windup > 0) vx = 0;                               // freeze during wind-up
     else if (c.reclaim) vx = (c.vx > 0 ? 1 : -1) * 0.55;         // focused scuttle to the drop
-    else vx = (c.vx > 0 ? 1 : -1) * (c.base === 'sucker' ? 0.4 : 0.7) * calm;
+    else vx = (c.vx > 0 ? 1 : -1) * (c.grind ? 1.05 : c.base === 'sucker' ? 0.4 : 0.7) * calm;
     // cliff sense: patrolling crabs turn back at ledges/pits (chargers may dash off)
     if (c.onG && c.charge <= 0 && vx !== 0) {
       const aheadC = Math.floor((c.x + c.w/2 + Math.sign(vx) * 14) / TILE);
@@ -1271,7 +1399,7 @@ function update() {
     let hitWall = false;
     for (const s of solids) { if (aabb(c, s)) { if (vx>0) c.x=s.x-c.w; else c.x=s.x+s.w; hitWall = true; } }
     if (c.charge > 0) { if (hitWall) c.charge = 0; }
-    else if (hitWall || (!c.reclaim && (c.x < c.homeMin || c.x > c.homeMax))) c.vx *= -1;
+    else if (hitWall || (!c.reclaim && !c.grind && !c.buried && (c.x < c.homeMin || c.x > c.homeMax))) c.vx *= -1;
 
     // --- gravity ---
     c.vy = (c.vy || 0) + GRAV; if (c.vy > 12) c.vy = 12;
@@ -1286,13 +1414,17 @@ function update() {
       continue;
     }
 
-    // Claw hit — swipe the crab (armoured crate takes 2)
-    if (atkBox && c.hitFlash <= 0 && aabb(c, atkBox)) { damageCrab(c, p.face); if (c.dead) continue; }
+    // Claw hit — swipe the crab (armoured crate takes 2; buried/melted are untouchable)
+    if (!c.noContact && atkBox && c.hitFlash <= 0 && aabb(c, atkBox)) { damageCrab(c, p.face); if (c.dead) continue; }
 
-    // Player collision
-    if (c.hitFlash <= 0 && aabb(p, c)) {
+    // Player collision (buried/melted crabs are harmless AND unhittable)
+    if (!c.noContact && c.hitFlash <= 0 && aabb(p, c)) {
       const stomped = p.vy > 1.2 && (p.y + p.h) - c.y < 12;
-      if (stomped) { p.vy = -6.5; damageCrab(c, 0); }            // bounce + hurt crab
+      if (stomped) {
+        p.vy = -6.5;
+        if (c.spiky > 0) return damagePlayer(p.x < c.x ? -1 : 1); // coral spikes: stomp backfires!
+        damageCrab(c, 0);                                         // bounce + hurt crab
+      }
       else return damagePlayer(p.x < c.x ? -1 : 1);              // side hit → lose a heart
     }
   }
@@ -1303,7 +1435,17 @@ function update() {
     for (const s of solids) { if (pr.x>s.x && pr.x<s.x+s.w && pr.y>s.y && pr.y<s.y+s.h) { pr.life = 0; break; } }
     const box = { x: pr.x-pr.r, y: pr.y-pr.r, w: pr.r*2, h: pr.r*2 };
     if (atkBox && pr.life > 0 && aabb(box, atkBox)) { pr.life = 0; spawnBurst(pr.x, pr.y, ['#fff','#ffd23f']); }  // clawed away
-    if (pr.life > 0 && p.hurt <= 0 && aabb(p, box)) { pr.life = 0; return damagePlayer(pr.vx > 0 ? 1 : -1); }   // hit → lose a heart
+    if (pr.grace > 0) pr.grace--;                                   // fresh spore-puff grace
+    else if (pr.life > 0 && p.hurt <= 0 && aabb(p, box)) {
+      pr.life = 0;
+      if (pr.kind === 'jet') {                                      // water jet: pushes, never wounds
+        p.vx += pr.vx > 0 ? 4.5 : -4.5; p.vy = Math.min(p.vy, -2);
+        spawnBurst(p.x + p.w/2, p.y + p.h/2, ['#8fc0e0','#d8f6ff'], 10);
+      } else if (pr.kind === 'dust') {                              // explorer dust: blinds briefly
+        dustT = 150;
+        spawnBurst(p.x + p.w/2, p.y + 4, ['#cbb488','#af976c'], 10);
+      } else return damagePlayer(pr.vx > 0 ? 1 : -1);               // hit → lose a heart
+    }
   }
   projectiles = projectiles.filter(pr => pr.life > 0 && pr.y < level.h + 60);
 
@@ -1566,6 +1708,7 @@ function draw() {
   for (const s of solids) drawBlock(s);            // ground / blocks (themed, neighbour-aware)
   for (const n of nests) if (!n.dead) drawNest(n); // grey nests (drain pressure)
   for (const k of crystals) drawCrystal(k);        // sealed grey shell crystals
+  for (const b of bogs) drawBog(b);                // swamp-crab bog patches
   for (const r of restorables) if (r.state !== 'restored') drawRestorableGrey(r);
   for (const c of enemies) if (!c.dead) drawCrab(c); // hybrid crabs (grey until rescued)
   if (boss && !boss.dead) drawBoss(boss);
@@ -1627,6 +1770,16 @@ function draw() {
   const vg = ctx.createRadialGradient(VW/2, VH*0.45, VH*0.5, VW/2, VH*0.55, VH*1.1);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(8,4,18,0.42)');
   ctx.fillStyle = vg; ctx.fillRect(0,0,VW,VH);
+
+  // explorer-crab dust: a sandy haze creeps in from the edges, then settles
+  if (dustT > 0) {
+    const a = Math.min(0.55, dustT / 150 * 0.55);
+    const dg = ctx.createRadialGradient(VW/2, VH/2, VH*0.2, VW/2, VH/2, VH*0.85);
+    dg.addColorStop(0, 'rgba(203,180,136,0)');
+    dg.addColorStop(0.6, `rgba(203,180,136,${a*0.5})`);
+    dg.addColorStop(1, `rgba(175,151,108,${a})`);
+    ctx.fillStyle = dg; ctx.fillRect(0,0,VW,VH);
+  }
 
   drawHUD();
   ctx = fgCtx; drawFade(ctx);        // scene-transition wipe (fade in from Home)
@@ -1928,6 +2081,13 @@ function drawProjectile(pr) {
     ctx.fillStyle = 'rgba(255,143,206,0.4)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 6, 0, 6.28); ctx.fill();
     ctx.fillStyle = '#ff8fce'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 4, 0, 6.28); ctx.fill();
     ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 1.6, 0, 6.28); ctx.fill();
+  } else if (pr.kind === 'jet') {   // water jet: a splashy blue droplet burst
+    ctx.fillStyle = 'rgba(143,192,224,0.45)'; ctx.beginPath(); ctx.arc(pr.x, pr.y, 7, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#6fa8cf'; ctx.beginPath(); ctx.arc(pr.x, pr.y, 4.5, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#d8f6ff'; ctx.beginPath(); ctx.arc(pr.x-1.4, pr.y-1.4, 1.6, 0, 6.28); ctx.fill();
+  } else if (pr.kind === 'dust') {  // explorer dust: drifting sandy puff
+    ctx.fillStyle = 'rgba(203,180,136,0.4)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 7, 0, 6.28); ctx.fill();
+    ctx.fillStyle = 'rgba(175,151,108,0.8)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, 4, 0, 6.28); ctx.fill();
   } else { // spore
     ctx.fillStyle = 'rgba(176,107,255,0.4)'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, pr.r+3, 0, 6.28); ctx.fill();
     ctx.fillStyle = '#b06bff'; ctx.beginPath(); ctx.arc(pr.x, pr.y+wob, pr.r, 0, 6.28); ctx.fill();
@@ -2168,6 +2328,28 @@ function drawCrab(c) {
   ctx.fillStyle = 'rgba(120,120,120,0.15)';
   ctx.beginPath(); ctx.arc(0, 8, 15, 0, 6.28); ctx.fill();
 
+  // --- unique-power pose: prefer a generated pose frame; otherwise the
+  // code-drawn look below stands in (mound, puddle, spikes, whip...) ---
+  const pose = c.buried ? 'buried' : c.melted ? 'melted'
+             : c.dizzy > 0 ? 'dizzy'
+             : (kind === 'coconut' && c.charge > 0) ? 'roll'
+             : (kind === 'crate' && !c.popped) ? 'hiding'
+             : (c.spiky > 0) ? 'spiky' : (c.whip > 0) ? 'whip'
+             : c.reclaim ? 'reclaim' : 'walk';
+  const poseFramed = !!(frameArt[kind] && frameArt[kind][pose] && frameArt[kind][pose].length);
+  if (c.buried && !poseFramed) {              // sand crab: just a mound + peeking eyes
+    ctx.fillStyle = '#cbb488';
+    ctx.beginPath(); ctx.ellipse(0, 13, 11, 5, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#5a4a30';
+    ctx.fillRect(-4.5, 8.5, 2.4, 2.4); ctx.fillRect(2.1, 8.5, 2.4, 2.4);
+    ctx.restore(); return;
+  }
+  if (c.melted && !poseFramed) {
+    if (kind === 'choc') { ctx.translate(0, 11); ctx.scale(1.35, 0.3); }  // gooey puddle
+    else { ctx.globalAlpha = 0.5; ctx.translate(0, Math.sin(c.wig) * 2 - 2); }  // ash cloud
+  }
+  if (kind === 'static' && c.blinkCd !== undefined && c.blinkCd < 16) ctx.globalAlpha = 0.55;
+
   // Drainers (paint-sucker base): pulsing drain aura + colour streaks inhaled
   if (c.base === 'sucker') {
     const pu = 1 + Math.sin(c.wig*1.5)*0.15;
@@ -2186,21 +2368,32 @@ function drawCrab(c) {
 
   // Generated crab art (grey / paint-sucker / vine crab) with code fallback:
   // a per-state animation frame when loaded, else the single sprite.
-  const crabFrame = animFrame(kind, c.reclaim ? 'reclaim' : 'walk', c.wig);
+  const crabFrame = animFrame(kind, pose, c.wig);
   if (crabFrame || sprites[kind]) {
     ctx.imageSmoothingEnabled = false;
     const spr = crabFrame || sprites[kind];
-    const sh = 22, sw = sh * spr.width / spr.height;
-    // gentle scuttle-rock so a crab on a single frame still reads as walking
+    let sh = 22, sw = sh * spr.width / spr.height;
+    if (sw > 30) { sw = 30; sh = 30 * spr.height / spr.width; }   // wide pose frames (puddles etc.)
     ctx.save();
-    ctx.rotate(Math.sin(c.wig) * 0.05);
-    ctx.translate(0, -Math.abs(Math.sin(c.wig)) * 1.2);
-    ctx.drawImage(spr, -sw/2, 16 - sh, sw, sh);
+    const still = pose === 'hiding' || c.buried || (c.melted && kind === 'choc');
+    if (pose === 'roll') {                                        // rolling coconut spins
+      ctx.translate(0, 16 - sh/2);
+      ctx.rotate((c.dir || 1) * c.wig * 2.5);
+      ctx.drawImage(spr, -sw/2, -sh/2, sw, sh);
+    } else {
+      // gentle scuttle-rock so a crab on a single frame still reads as walking
+      if (!still) {
+        ctx.rotate(Math.sin(c.wig) * 0.05);
+        ctx.translate(0, -Math.abs(Math.sin(c.wig)) * 1.2);
+      }
+      ctx.drawImage(spr, -sw/2, 16 - sh, sw, sh);
+    }
     if (c.hitFlash > 0 && Math.floor(c.hitFlash/3) % 2 === 0) {   // armour flash
       ctx.globalAlpha = 0.5; ctx.fillStyle = '#fff';
       ctx.fillRect(-sw/2, 16 - sh, sw, sh); ctx.globalAlpha = 1;
     }
     ctx.restore();
+    if (!poseFramed) drawKindFx(c);
     ctx.restore();
     return;
   }
@@ -2277,7 +2470,46 @@ function drawCrab(c) {
     roundRect(-9, -1, 18, 15, 6); ctx.fill(); ctx.globalAlpha = 1;
   }
 
+  drawKindFx(c);
   ctx.restore();
+}
+
+// Code-drawn overlays for the unique powers (used until/unless a generated
+// pose frame exists for that state). Drawn in crab-local space.
+function drawKindFx(c) {
+  if (c.spiky > 0) {                                  // coral spikes: don't stomp!
+    ctx.fillStyle = '#e8b4c8'; ctx.strokeStyle = '#6a4040'; ctx.lineWidth = 1;
+    for (const [sx, sy, a] of [[-9,2,-0.5],[0,-3,0],[9,2,0.5],[-5,-1,-0.25],[5,-1,0.25]]) {
+      ctx.save(); ctx.translate(sx, sy); ctx.rotate(a);
+      ctx.beginPath(); ctx.moveTo(-2.5, 4); ctx.lineTo(0, -7); ctx.lineTo(2.5, 4); ctx.closePath();
+      ctx.fill(); ctx.stroke(); ctx.restore();
+    }
+  }
+  if (c.kind === 'seaweed' && c.whip > 0) {           // lashing frond arc
+    const prog = 1 - c.whip / 16, dir = c.dir || (c.vx > 0 ? 1 : -1);
+    ctx.strokeStyle = '#5f8a4e'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(dir * 4, 6);
+    ctx.quadraticCurveTo(dir * 14, 2 - prog * 10, dir * (10 + prog * 16), 10 + prog * 4);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  }
+  if (c.dizzy > 0) {                                  // cracked-open coconut sees stars
+    ctx.fillStyle = '#ffd23f';
+    for (let i = 0; i < 3; i++) {
+      const a = c.wig * 2 + i * 2.09;
+      ctx.beginPath(); ctx.arc(Math.cos(a) * 8, -8 + Math.sin(a) * 2.5, 1.4, 0, 6.28); ctx.fill();
+    }
+  }
+}
+
+// Swamp-crab bog patch: murky slow-mud with a lazy bubble.
+function drawBog(b) {
+  ctx.fillStyle = 'rgba(90,100,60,0.55)';
+  ctx.beginPath(); ctx.ellipse(b.x + b.w/2, b.y + b.h - 2, b.w/2, 4, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = 'rgba(130,143,92,0.6)';
+  const t = timeT * 3 + b.x;
+  ctx.beginPath(); ctx.arc(b.x + 6 + (Math.sin(t) + 1) * 6, b.y + b.h - 4, 1.6, 0, 6.28); ctx.fill();
 }
 
 // Always-colour warning drawn on the FOREGROUND layer so nests pop out even

@@ -130,5 +130,16 @@
     "pinny_celebrate": "small joyful hop with claws up (level clear / restore milestone)",
     "grey_cracked": "shell cracked open with colour light spilling out",
     "grey_cleanse": "the crab, now faintly colourful, looking lighter and relieved"
+  },
+  "power_poses": {
+    "note": "Unique-power pose frames (Notion enemy behaviours), each generated as a pose-only EDIT of that crab's base sprite. Wired into ART_FRAMES states in game/index.html.",
+    "crate.hiding": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_221229_46b53400-d767-4c2d-9ce0-44e6841f72da.png",
+    "sand.buried": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_221232_b8dbf63b-b047-47e4-846f-791c92a9f5eb.png",
+    "coconut.roll": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_221235_573c1a24-e81a-4e7b-8cf5-889ab2672ad2.png",
+    "coconut.dizzy": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_221236_2288a4f0-3ee2-49b5-8877-89e00b2fa4b4.png",
+    "choc.melted": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_221239_d7fd0ac0-5505-4b6a-b406-b56cccc844a4.png",
+    "ash.melted": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_221241_8e759061-de84-435a-aad9-19f3dd55fdfd.png",
+    "coral.spiky": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_221244_67ecb39a-d555-4050-b703-44e0d1ea3525.png",
+    "seaweed.whip": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_221246_f7c2dc17-d19b-40d3-b4c2-742de6f53ed9.png"
   }
 }
