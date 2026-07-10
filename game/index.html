@@ -1111,9 +1111,13 @@ function update() {
         const drain = (suckers * 0.00045 + liveNests * 0.0003) * drainMul;
         if (drain > 0) tide = Math.max(0.05, tide - drain);       // never below the floor
       }
-      // all crabs, nests and crystals cleared -> colour stabilises, tide floods in
+      // Colour stabilises (and RAINBOW RUSH fires) only when every source is
+      // cracked AND — in drop-loop levels — every freed colour drop has been
+      // gathered. Cracking the greys frees the colour; collecting it wins it.
       const hadThreats = totalGrey > 0 || nests.length > 0 || crystals.length > 0;
-      if (hadThreats && liveNests === 0 && enemies.every(c => c.dead) && crystals.every(k => k.cracked)) {
+      const colourGathered = !dropLoop || drops.length === 0;
+      if (hadThreats && liveNests === 0 && enemies.every(c => c.dead) &&
+          crystals.every(k => k.cracked) && colourGathered) {
         stabilised = true;
         if (!rushUsed) { rushUsed = true; rush = 600; }           // RAINBOW RUSH!
       }
