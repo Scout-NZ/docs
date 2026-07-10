@@ -352,18 +352,22 @@ resize();
    read fails — offline, strict CSP, sandbox — the game silently keeps
    its code-drawn art, so it is always playable. See game/assets.json.
    ------------------------------------------------------------------ */
+const ABASE = 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/';
 const ART_SPRITES = {
   // key = the solid backdrop colour each sprite was generated on
   pinny:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045118_a7e802a5-ed24-4989-8e2d-9f01fa17d6b1.png', key:[0,0,255] },
   grey:   { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045126_8f9d7ad8-efff-453a-b1fe-bfafe7d79571.png', key:[255,0,255] },
   sucker: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045129_5d5c5a90-23b9-41e8-9baa-46ad88a55932.png', key:[0,255,0] },
   flower: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260707_045123_9da3a942-9ed3-41be-bd9c-1f65a012bcda.png', key:[255,0,255] },
+  // enemy kinds matched from the creator's Higgsfield grey-crab-enemy series
+  mushroom: { url: ABASE+'hf_20260708_214113_eea0267a-929b-4928-aab7-1021eb0cd21c_min.webp', key:[255,0,255] },   // spotted mushroom-cap shell
+  red:      { url: ABASE+'hf_20260708_214153_1aef565f-c216-4862-98ac-2583d0edb14b_min.webp', key:[255,0,255] },   // molten lava-seam shell (the shooter)
+  crate:    { url: ABASE+'hf_20260708_214158_09910167-81f7-491e-81fa-fbd452f9c428_min.webp', key:[255,0,255] },   // boulder-disguise armour (2 hits)
   // playable hero sprites (generated from the crab collection)
   char_yeti:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075557_fc604099-1e0e-4e07-a44e-10b1da434350.png', key:[255,0,255] },
   char_candy: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075634_8a49e69a-1a7a-44ef-8786-4ee95553d3b8.png', key:[255,0,255] },
   char_coco:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045959_bbff7f4c-12d0-465d-ba96-4a414f4bbe03.png', key:[255,0,255] },
 };
-const ABASE = 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/';
 // Per-state animation FRAMES (Stage 2 of the World One brief). Each state
 // lists CDN frame URLs generated on the character's key colour and
 // chroma-keyed like the single sprites above. The generation checklist and

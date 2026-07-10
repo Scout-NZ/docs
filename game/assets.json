@@ -76,6 +76,21 @@
       "role": "playable hero sprite - Coco (Coconut Crab)",
       "key_colour": "#FF00FF",
       "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045959_bbff7f4c-12d0-465d-ba96-4a414f4bbe03.png"
+    },
+    {
+      "role": "mushroom crab enemy sprite (grey enemy series)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214113_eea0267a-929b-4928-aab7-1021eb0cd21c.png"
+    },
+    {
+      "role": "red crab enemy sprite \u2014 molten lava shell (grey enemy series)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214153_1aef565f-c216-4862-98ac-2583d0edb14b.png"
+    },
+    {
+      "role": "crate crab enemy sprite \u2014 boulder-disguise armour (grey enemy series)",
+      "key_colour": "#FF00FF",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_214158_09910167-81f7-491e-81fa-fbd452f9c428.png"
     }
   ]
 }
