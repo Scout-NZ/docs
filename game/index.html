@@ -667,6 +667,7 @@ const THEMES = [
 
 // --- Game state ---
 let level, solids, enemies, fruits, hearts, flag, player, cam, theme, boss, projectiles;
+let winT = 0, winGroundY = 0;      // flag-touch victory dance countdown
 let totalGrey, greyLeft, score, melons, lives, levelIndex, running, particles;
 let timeT, bannerT, ambient, solidSet, nests;
 
@@ -745,7 +746,7 @@ function buildLevel(idx) {
   const map = testMode ? TEST_ROOM_MAP : LEVELS[idx];
   theme = testMode ? TEST_THEME : (THEMES[idx] || THEMES[THEMES.length - 1]);
   solids = []; enemies = []; fruits = []; hearts = []; flag = null; boss = null; particles = []; projectiles = []; nests = [];
-  crystals = []; restorables = []; drops = []; colourDrops = 0;
+  crystals = []; restorables = []; drops = []; colourDrops = 0; winT = 0;
   let gi = 0; // crab index, used to cycle through this world's crab kinds
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
@@ -1054,6 +1055,23 @@ function update() {
   timeT += 1/60;                 // level timer (display only)
   if (bannerT > 0) bannerT--;    // level-name banner fade
 
+  // Victory dance at the flag: Pinny hops with confetti for a moment before
+  // the level actually finishes. Gameplay is frozen so nothing can hurt him.
+  if (winT > 0) {
+    winT--;
+    p.anim = 'celebrate';
+    p.vy += 0.5; p.y += p.vy;
+    if (p.y >= winGroundY) {
+      p.y = winGroundY;
+      p.vy = winT > 14 ? -4.4 : 0;                       // keep hopping until the end
+    }
+    if (winT % 9 === 0) spawnBurst(p.x + p.w/2, p.y - 4, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0'], 5);
+    for (const pt of particles) { pt.vy += 0.18; pt.x += pt.vx; pt.y += pt.vy; pt.life--; }
+    particles = particles.filter(pt => pt.life > 0);
+    if (winT === 0) finishLevel();
+    return;
+  }
+
   // Horizontal input
   if (keys.left)  { p.vx -= MOVE; p.face = -1; }
   if (keys.right) { p.vx += MOVE; p.face = 1; }
@@ -1346,11 +1364,13 @@ function update() {
   // Fell in a pit → that's a whole life (classic platformer rule)
   if (p.y > level.h + 40) return loseLife();
 
-  // Reached the flag → win (only when the world's colour is mostly back)
+  // Reached the flag → little victory dance first, then the level ends
+  // (crabs may remain — passing is always allowed to keep it kid-easy)
   if (flag && aabb(p, flag)) {
-    if (greyLeft === 0) return finishLevel();
-    // If crabs remain, still let them pass to keep it kid-easy
-    return finishLevel();
+    winT = 80; winGroundY = p.y;
+    p.anim = 'celebrate'; p.vx = 0;
+    spawnBurst(flag.x + 6, flag.y + 8, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#ff9d3c'], 20);
+    return;
   }
 
   // Camera follows player. The playable view stops above the control deck
@@ -1456,6 +1476,7 @@ function draw() {
   ctx.clearRect(0,0,VW,VH);
   ctx.save();
   ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+  drawTutorialHints();                             // bright teach-prompts (Grey Tide Beach only)
   if (flag) drawFlag(flag);
   for (const f of fruits) if (!f.got && !f.hidden) drawFruit(f);
   for (const h of hearts) if (!h.got) drawHeartPickup(h);
@@ -1889,7 +1910,8 @@ function drawPinny(p) {
       bobY = anim === 'walk' ? -Math.abs(Math.sin(p.walk)) * 1.8
            : anim === 'idle' ? Math.sin(timeT * 2.2) * 0.8 : 0;
       tilt = anim === 'walk' ? Math.sin(p.walk) * 0.06
-           : anim === 'jump' ? -0.07 : anim === 'fall' ? 0.09 : 0;
+           : anim === 'jump' ? -0.07 : anim === 'fall' ? 0.09
+           : anim === 'celebrate' ? Math.sin(timeT * 14) * 0.14 : 0;
     }
 
     ctx.save();
@@ -2180,6 +2202,31 @@ function drawNest(n) {
 }
 
 // --- Grey shell crystal: hardened colour sealed inside a dull shell. ---
+// Bright tutorial prompts for the Beach Start (World One brief): each floats
+// above the spot where its move is first needed. Grey Tide Beach 1-1 only —
+// on the always-colour layer so they read even while the world is grey.
+const TUTORIAL_HINTS = [
+  { x: 2.6,  y: 9.6, big: '◀ ▶',       small: 'MOVE' },
+  { x: 4.8,  y: 7.4, big: '⬆',          small: 'JUMP!' },
+  { x: 12.5, y: 9.2, big: '💥 CLAW',    small: 'crack the grey shell!' },
+  { x: 32.6, y: 9.0, big: '🌈 3 DROPS', small: 'grow the bridge!' },
+];
+function drawTutorialHints() {
+  if (testMode || levelIndex !== 0 || !dropLoop) return;
+  ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+  for (const h of TUTORIAL_HINTS) {
+    const hx = h.x * TILE, hy = h.y * TILE + Math.sin(timeT * 2.4 + h.x) * 1.6;
+    ctx.font = '900 9px "Trebuchet MS", Verdana, sans-serif';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(30,12,40,0.85)';
+    ctx.strokeText(h.big, hx, hy);
+    ctx.fillStyle = '#ffe58a'; ctx.fillText(h.big, hx, hy);
+    ctx.font = '800 7px "Trebuchet MS", Verdana, sans-serif';
+    ctx.strokeText(h.small, hx, hy + 9);
+    ctx.fillStyle = '#fff'; ctx.fillText(h.small, hx, hy + 9);
+  }
+  ctx.textAlign = 'start';
+}
+
 function drawCrystal(k) {
   const cx = k.x + k.w/2, base = k.y + k.h;
   const flash = k.flash > 0 && (Math.floor(k.flash/3) % 2 === 0);
