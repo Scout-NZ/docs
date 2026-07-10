@@ -1,0 +1,66 @@
+{
+  "note": "Animation-frame manifest for Krabby World (Stage 2 of the World One brief). Each state lists the poses to generate in Higgsfield. Generate every frame with the SAME locked style formula below, on a solid magenta #FF00FF background, full body, side view FACING LEFT, consistent character size across frames. The game chroma-keys frames at load time and falls back to the single sprite + procedural motion for any state whose frames are missing, so partial sets are safe to ship.",
+  "how_to_generate": [
+    "1. For each state frame below, build the prompt as: <subject>, <pose>, <style_formula>, 'isolated on a solid flat magenta #FF00FF background, nothing else in frame, full body visible, side view facing left, centered'.",
+    "2. Generate at 1:1 aspect ratio.",
+    "3. Paste the returned CDN URL into that frame's slot in the 'urls' array here.",
+    "4. Mirror the finished 'urls' arrays into ART_FRAMES in game/index.html (pinny.states / grey.states) — the loader, chroma key, and renderer are already wired.",
+    "5. Check in the test room (game/index.html#test): walk, jump, claw, get hurt, and lure the crab onto a drop to see 'reclaim'."
+  ],
+  "style_formula": "chunky 16-bit pixel art with painterly shading, classic SNES platformer feel, rounded bouncy shapes with thick dark-chocolate outlines, environments in lush layered jungle greens and sky blues, hero in warm pineapple-yellow with leafy green crown and red watermelon accents contrasting the surroundings, enemies in muted stony greys, pickups glowing watermelon-red and gold, hopeful sunny storybook atmosphere with soft depth haze, high contrast between game elements and backgrounds, clean readable silhouettes, consistent side-view perspective across all assets",
+  "characters": {
+    "pinny": {
+      "subject": "cute one-eyed pineapple-watermelon crab hero, round pineapple-yellow body with diamond texture, leafy green crown, one big friendly eye, two orange claws, red watermelon-slice accents, six small legs",
+      "key_colour": "#FF00FF",
+      "facing": "left",
+      "reference": "existing Pinny sprite (assets.json 'hero sprite (Pinny)') — keep the same character design in every frame",
+      "states": {
+        "idle": { "fps": 3,  "poses": [
+          "standing relaxed on all legs, claws resting low, eye open and bright",
+          "standing relaxed, body lifted a touch as if breathing in, eye half closed in a slow blink" ],
+          "urls": ["", ""] },
+        "walk": { "fps": 8,  "poses": [
+          "mid-scuttle with left legs forward and right legs back, claws swinging slightly",
+          "mid-scuttle with right legs forward and left legs back, body bobbed a little lower" ],
+          "urls": ["", ""] },
+        "jump": { "fps": 1,  "poses": [
+          "leaping upward, body stretched tall, legs trailing below, claws raised for balance" ],
+          "urls": [""] },
+        "fall": { "fps": 1,  "poses": [
+          "falling, body tilted slightly forward, legs tucked up, claws open wide" ],
+          "urls": [""] },
+        "claw": { "fps": 14, "poses": [
+          "winding up a claw strike, leading claw pulled back and open wide",
+          "claw snapped shut at full forward extension, motion feeling, body leaning into the strike" ],
+          "urls": ["", ""] },
+        "hurt": { "fps": 10, "poses": [
+          "knocked back, eye squeezed shut, legs splayed, claws flinched inward" ],
+          "urls": [""] }
+      }
+    },
+    "grey": {
+      "subject": "small grey crab minion with a sealed stony rounded shell, sleepy heavy-lidded eyes, two small grey claws, muted stony greys only",
+      "key_colour": "#FF00FF",
+      "facing": "left",
+      "reference": "existing grey crab sprite (assets.json 'grey crab enemy sprite') — keep the same character design in every frame",
+      "states": {
+        "idle": { "fps": 3, "poses": [
+          "sitting heavy and still, shell settled low, eyes drooping" ],
+          "urls": [""] },
+        "walk": { "fps": 6, "poses": [
+          "trudging sideways with left legs forward, shell rocked slightly back",
+          "trudging sideways with right legs forward, shell rocked slightly forward" ],
+          "urls": ["", ""] },
+        "reclaim": { "fps": 8, "poses": [
+          "scurrying urgently with both claws reaching out to grab something, eyes suddenly wide" ],
+          "urls": [""] }
+      }
+    }
+  },
+  "future": {
+    "note": "Not required for the World One slice; add once the slice feels good.",
+    "pinny_celebrate": "small joyful hop with claws up (level clear / restore milestone)",
+    "grey_cracked": "shell cracked open with colour light spilling out",
+    "grey_cleanse": "the crab, now faintly colourful, looking lighter and relieved"
+  }
+}
