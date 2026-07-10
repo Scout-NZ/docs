@@ -408,10 +408,10 @@ const ART_FRAMES = {
   }},
   grey:  { key:[255,0,255], fps:{ idle:3, walk:6, reclaim:8 }, states:{
     idle: [ABASE+'hf_20260710_045940_b27cad50-a022-45b1-8d55-34a1da1c6619_min.webp'],
-    // walk frames removed: the two independently-generated poses came out at
-    // different scales (the shell visibly ballooned each step). Walking falls
-    // back to the idle frame until a consistent walk cycle is generated as
-    // EDITS of the idle frame (same crab, only the legs move).
+    // walk cycle regenerated as leg-only EDITS of the idle frame, so the crab
+    // is the identical character in every frame (no more ballooning shell)
+    walk: [ABASE+'hf_20260710_215955_10abca01-4041-43d2-9b9c-4968f83e5dde_min.webp',
+           ABASE+'hf_20260710_215957_62e7e930-990b-40c0-a58f-85edb6d0ded0_min.webp'],
     reclaim: [ABASE+'hf_20260710_045951_6d06f439-5635-4852-be46-2e46486823d3_min.webp'],
   }},
 };
