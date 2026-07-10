@@ -306,6 +306,12 @@ let ctx = worldCtx;
 // and reserves a control deck at the bottom so gameplay never hides under the
 // touch buttons (resize() keeps all of it in sync).
 let VW = 480, VH = 270;
+const ZOOM = 1.4;              // camera zoom-in: fewer tiles on screen, so the
+                               // crab characters read ~40% bigger and levels
+                               // feel like places to explore rather than maps
+const RES  = 2;                // supersample: the canvas backing store runs at
+                               // 2x the virtual size so sprites keep far more
+                               // of their painted detail before CSS upscaling
 let ctrlPad = 0;               // virtual px reserved for the button deck (portrait only)
 const TILE = 24;               // tile size in world pixels
 const GRAV = 0.55;
@@ -316,7 +322,7 @@ const MAX_HP = 5;              // hearts (per-life health) cap
 // keep playing). LIVES restart the level (hearts emptied, or a pit fall).
 let hp = 3, maxHp = 3;
 
-worldCanvas.width = fgCanvas.width = VW; worldCanvas.height = fgCanvas.height = VH;
+worldCanvas.width = fgCanvas.width = VW * RES; worldCanvas.height = fgCanvas.height = VH * RES;
 
 // --- Fit the canvas to the screen while keeping aspect ratio ---
 // Portrait phones get a 270x480 virtual screen (fills the display); landscape
@@ -326,16 +332,17 @@ function resize() {
   const portrait = availH > availW;
   let nw, nh;
   if (portrait) {
-    nw = 270;
-    nh = Math.max(420, Math.min(620, Math.round(270 * availH / availW)));  // fill the real aspect
-    ctrlPad = 96;
+    nw = Math.round(270 / ZOOM);
+    nh = Math.max(Math.round(420 / ZOOM),
+         Math.min(Math.round(620 / ZOOM), Math.round(nw * availH / availW)));  // fill the real aspect
+    ctrlPad = Math.round(96 / ZOOM);
   } else {
-    nw = 480; nh = 270; ctrlPad = 0;
+    nw = Math.round(480 / ZOOM); nh = Math.round(270 / ZOOM); ctrlPad = 0;
   }
   if (nw !== VW || nh !== VH) {
     VW = nw; VH = nh;
-    worldCanvas.width = fgCanvas.width = VW;
-    worldCanvas.height = fgCanvas.height = VH;
+    worldCanvas.width = fgCanvas.width = VW * RES;
+    worldCanvas.height = fgCanvas.height = VH * RES;
   }
   const scale = Math.min(availW / VW, availH / VH);
   const w = Math.floor(VW * scale) + 'px', h = Math.floor(VH * scale) + 'px';
@@ -1529,6 +1536,10 @@ let tideState_ = 0;   // per-frame snapshot for the renderers (tiles react to th
 function draw() {
   applyTide();                                     // Colour Tide -> world saturation (eased)
   tideState_ = tState();
+  // Supersampled rendering: everything below draws in virtual coordinates on
+  // a RES-times-larger backing store, keeping the painted sprites detailed.
+  worldCtx.setTransform(RES, 0, 0, RES, 0, 0);
+  fgCtx.setTransform(RES, 0, 0, RES, 0, 0);
 
   // ---------- WORLD LAYER (starts greyscale; colour returns via CSS filter) ----------
   ctx = worldCtx;
@@ -3029,6 +3040,8 @@ function updateHome() {
 function drawHome() {
   const g = homeGeom();
   worldCanvas.style.filter = 'none';                           // Home is always full colour
+  worldCtx.setTransform(RES, 0, 0, RES, 0, 0);
+  fgCtx.setTransform(RES, 0, 0, RES, 0, 0);
   ctx = worldCtx; ctx.imageSmoothingEnabled = false;
   ctx.save(); ctx.translate(-Math.round(cam.x), 0);
   if (homeBgImg) ctx.drawImage(homeBgImg, 0, 0, g.w, VH);      // Higgsfield house art
