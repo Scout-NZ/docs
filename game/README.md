@@ -106,3 +106,7 @@ Keyboard also works on a computer: **arrow keys** to move, **space** to jump,
   `X` = ground, `P` = Pinny's start, `G` = grey crab, `o` = fruit, `F` = flag.
 - **Jump to a level:** add `#3` (etc.) to the end of the URL to start on that
   level — handy for showing off a favourite or picking up where you left off.
+- **Mechanics test room:** open the game with `#test` for the World One core-loop
+  sandbox — a grey shell crystal to crack, colour drops to collect (they can
+  never be permanently lost; strays float back into play), and a grey palm tree
+  that blooms and raises a fruit platform when fed 3 drops.
