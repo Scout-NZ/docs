@@ -5,7 +5,8 @@
     "2. Generate at 1:1 aspect ratio.",
     "3. Paste the returned CDN URL into that frame's slot in the 'urls' array here.",
     "4. Mirror the finished 'urls' arrays into ART_FRAMES in game/index.html (pinny.states / grey.states) \u2014 the loader, chroma key, and renderer are already wired.",
-    "5. Check in the test room (game/index.html#test): walk, jump, claw, get hurt, and lure the crab onto a drop to see 'reclaim'."
+    "5. Check in the test room (game/index.html#test): walk, jump, claw, get hurt, and lure the crab onto a drop to see 'reclaim'.",
+    "6. CONSISTENCY RULE learned in playtest: never generate multi-frame states as independent images \u2014 generate frame 1, then make every other frame an image-to-image EDIT of it (\"identical character, change only the legs/claws\"), or the character size drifts between frames and pulses in-game."
   ],
   "style_formula": "chunky 16-bit pixel art with painterly shading, classic SNES platformer feel, rounded bouncy shapes with thick dark-chocolate outlines, environments in lush layered jungle greens and sky blues, hero in warm pineapple-yellow with leafy green crown and red watermelon accents contrasting the surroundings, enemies in muted stony greys, pickups glowing watermelon-red and gold, hopeful sunny storybook atmosphere with soft depth haze, high contrast between game elements and backgrounds, clean readable silhouettes, consistent side-view perspective across all assets",
   "characters": {
@@ -104,12 +105,12 @@
         "walk": {
           "fps": 6,
           "poses": [
-            "trudging sideways with left legs forward, shell rocked slightly back",
-            "trudging sideways with right legs forward, shell rocked slightly forward"
+            "leg-only EDIT of the idle frame: left legs forward, right legs back",
+            "leg-only EDIT of the idle frame: right legs forward, left legs back"
           ],
           "urls": [
-            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045944_dddc5391-d41c-4344-bf70-d551712b86f2.png",
-            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045948_14ac6d54-5a75-45da-b9e6-883b7e563cd0.png"
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_215955_10abca01-4041-43d2-9b9c-4968f83e5dde.png",
+            "https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_215957_62e7e930-990b-40c0-a58f-85edb6d0ded0.png"
           ]
         },
         "reclaim": {
