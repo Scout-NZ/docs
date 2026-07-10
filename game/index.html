@@ -169,6 +169,14 @@
     padding: 6px 18px; color: #3a1030; background: linear-gradient(180deg,#ffe58a,#ffb347); }
   .buy.max { background: #3ddc84; color: #123; }
   .shop-card.shake { animation: cardshake 0.3s; }
+
+  /* ---- Level results ---- */
+  .results-card { width: min(360px, 88vw); display: flex; flex-direction: column; gap: 10px;
+    background: rgba(255,255,255,0.08); border: 3px solid rgba(255,255,255,0.2);
+    border-radius: 16px; padding: 16px 18px; }
+  .res-row { display: flex; justify-content: space-between; align-items: center;
+    font-size: clamp(14px, 4vw, 19px); font-weight: 700; }
+  .res-row b { color: #ffd23f; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -222,6 +230,19 @@
     <div id="shopItems" class="shop-grid"></div>
     <div class="hint">Tap a card to buy it!</div>
     <button class="play" id="shopContinue">CONTINUE ▶</button>
+  </div>
+
+  <!-- Level results (drop-loop levels) -->
+  <div class="screen hidden" id="resultsScreen">
+    <div class="big-emoji">🌈</div>
+    <div class="title" style="font-size:clamp(22px,6vw,38px)">BEACH RESTORED!</div>
+    <div class="results-card">
+      <div class="res-row"><span>🦀 Crabs cleansed</span><b id="resCrabs">0/0</b></div>
+      <div class="res-row"><span>🌴 Objects restored</span><b id="resObjects">0/0</b></div>
+      <div class="res-row"><span>💧 Colour gathered</span><b id="resTide">0%</b></div>
+    </div>
+    <div class="hint" id="resHint"></div>
+    <button class="play" id="resultsContinue">CONTINUE ▶</button>
   </div>
 
   <!-- End screen (win/lose) -->
@@ -319,13 +340,14 @@ const ART_SPRITES = {
 };
 const ABASE = 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/';
 const ART_BGS = {   // theme index -> painted parallax backdrop (Higgsfield, one per world)
-  0: ABASE + 'hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png',   // Emerald Falls
-  1: ABASE + 'hf_20260708_081012_7727cb3f-8383-4d2e-9623-bba5cb2f31e5.png',   // Coral Gear Coast
-  2: ABASE + 'hf_20260708_081015_ec8c0109-0915-4343-9c88-489b568b94cb.png',   // Palm Cove
-  3: ABASE + 'hf_20260708_081018_79934582-484c-4c0f-907e-f9a6297e5956.png',   // Box Mountains
-  4: ABASE + 'hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png',   // Mushroom Marsh
-  5: ABASE + 'hf_20260708_081021_22bbb742-3086-42a1-b851-24e6648fc878.png',   // Monochrome Wasteland
-  6: ABASE + 'hf_20260708_081024_7d14b81b-c0fc-43d6-a333-af75b10dd91d.png',   // Ashclaw's Keep
+  0: ABASE + 'hf_20260708_081015_ec8c0109-0915-4343-9c88-489b568b94cb.png',   // Grey Tide Beach
+  1: ABASE + 'hf_20260707_045133_8ac0ceaf-04b6-49e8-b473-365594b619ad.png',   // Emerald Falls
+  2: ABASE + 'hf_20260708_081012_7727cb3f-8383-4d2e-9623-bba5cb2f31e5.png',   // Coral Gear Coast
+  3: ABASE + 'hf_20260708_081015_ec8c0109-0915-4343-9c88-489b568b94cb.png',   // Palm Cove
+  4: ABASE + 'hf_20260708_081018_79934582-484c-4c0f-907e-f9a6297e5956.png',   // Box Mountains
+  5: ABASE + 'hf_20260707_045135_592a1971-79c5-4607-adda-cbb74f15521f.png',   // Mushroom Marsh
+  6: ABASE + 'hf_20260708_081021_22bbb742-3086-42a1-b851-24e6648fc878.png',   // Monochrome Wasteland
+  7: ABASE + 'hf_20260708_081024_7d14b81b-c0fc-43d6-a333-af75b10dd91d.png',   // Ashclaw's Keep
 };
 const sprites = {}, bgArt = {};
 
@@ -424,6 +446,26 @@ loadArt();
      F = finish flag          B = boss
    ------------------------------------------------------------------ */
 const LEVELS = [
+  // WORLD ONE - GREY TIDE BEACH 1-1: the colour-loop vertical slice.
+  // Beats: safe start -> first crystal + palm -> first crab -> second
+  // crystal + reclaim crab -> colour-gate bridge over the pit -> exit.
+  // 'M' clam lift (spring) guards the optional high reward ledge.
+  [
+    "..........................................................",
+    "..........................................................",
+    "..........................................................",
+    "..........................................................",
+    ".................................................o.o......",
+    "................................................XXXX......",
+    "..........................................................",
+    "..........................................................",
+    ".....o......o..............................M..............",
+    "...XXXX...XXXX...........................XXXX.............",
+    "..........................................................",
+    "..P........C...R....G......C..G.W.................F.......",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX....XXXXXXXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX....XXXXXXXXXXXXXXXXXXXXX",
+  ],
   // Level 1: Crabby Cove
   [
     "..............................................",
@@ -553,6 +595,7 @@ const LEVELS = [
    platform look; kinds are the hybrid crab types that live there.
    ------------------------------------------------------------------ */
 const THEMES = [
+  { name:'GREY TIDE BEACH',     stage:'1-1', sky:['#4fb2e8','#9fdcf0','#ffe2ad'], hills:['#e8d5a8','#c9b183'], far:'#2d6b52', cloud:'#fff4de', sun:'#ffedb0', sunY:44,  deco:'palm',   amb:{col:'#ffe6a8',dx:0.12,dy:0.1},              moss:'#4a9e58', block:'grass', kinds:['grey'] },
   { name:'EMERALD FALLS',       stage:'1-1', sky:['#4fa3e8','#9fdcf0','#d8f3b8'], hills:['#3f9468','#2c7050'], far:'#265c49', cloud:'#ffffff', sun:'#fff3ae', sunY:40,  deco:'jungle', amb:{col:'#b8f0a8',dx:0.05,dy:0.22},            moss:'#4a9e58', block:'grass', kinds:['grey','flower','red'] },
   { name:'CORAL GEAR COAST',    stage:'1-4', sky:['#2f86c9','#6fc0e8','#c8f0f4'], hills:['#3f93a8','#2f7185'], far:'#1f5568', cloud:'#eafaff', sun:'#fff8d0', sunY:36,  deco:'gear',   amb:{col:'#d8f6ff',dx:0,dy:-0.35},               moss:'#3fae9c', block:'stone', kinds:['grey','crate','sucker'] },
   { name:'PALM COVE',           stage:'1-2', sky:['#4fb2e8','#9fdcf0','#ffe2ad'], hills:['#4aa878','#357c58'], far:'#2d6b52', cloud:'#fff4de', sun:'#ffedb0', sunY:46,  deco:'palm',   amb:{col:'#ffe6a8',dx:0.15,dy:0.12},             moss:'#4a9e58', block:'grass', kinds:['grey','flower','sucker'] },
@@ -636,7 +679,7 @@ const TEST_ROOM_MAP = [
   "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
 ];
-const TEST_THEME = Object.assign({}, THEMES[2], { name: 'GREY TIDE BEACH', stage: 'TEST' });
+const TEST_THEME = Object.assign({}, THEMES[0], { stage: 'TEST' });
 
 function buildLevel(idx) {
   const map = testMode ? TEST_ROOM_MAP : LEVELS[idx];
@@ -657,8 +700,10 @@ function buildLevel(idx) {
       else if (ch === 'B') boss = makeBoss(x, y);
       else if (ch === 'N') nests.push({ x: x+2, y: y+8, w: 20, h: 16, hp: 3, maxhp: 3,
                                         flash: 0, pulse: Math.random()*6.28, spawnT: 300, dead: false });
-      else if (ch === 'C') crystals.push(makeCrystal(x, y));       // grey shell crystal
-      else if (ch === 'R') restorables.push(makeRestorable(x, y)); // grey palm tree
+      else if (ch === 'C') crystals.push(makeCrystal(x, y));                 // grey shell crystal
+      else if (ch === 'R') restorables.push(makeRestorable(x, y, 'palm'));   // grey palm tree
+      else if (ch === 'M') restorables.push(makeRestorable(x, y, 'clam'));   // clam lift (spring)
+      else if (ch === 'W') restorables.push(makeRestorable(x, y, 'gate'));   // colour-gate bridge
     }
   }
   dropLoop = crystals.length > 0 || restorables.length > 0;   // this level runs the colour-drop loop
@@ -756,10 +801,14 @@ function makeCrystal(x, y) {
            pulse: Math.random() * 6.28, cracked: false };
 }
 
-function makeRestorable(x, y) {
-  // A grey palm tree. Feed it `need` colour drops (stand close) to restore.
-  // TODO: tune `need` and the restore radius (see updateRestorables).
-  return { x, y, kind: 'palm', state: 'grey', need: 3, t: 0, sway: Math.random() * 6.28 };
+// Restorable world objects. Feed one `need` colour drops (stand close) and it
+// blooms from grey to colour. Kinds:
+//   palm — reward: raises a shell platform with fruit (optional / 100%)
+//   clam — becomes a spring lift that launches Pinny to high ledges
+//   gate — colour gate: builds the bridge across the pit (required path)
+// TODO: tune `need` and the restore radius (see updateRestorables).
+function makeRestorable(x, y, kind) {
+  return { x, y, kind: kind || 'palm', state: 'grey', need: 3, t: 0, sway: Math.random() * 6.28 };
 }
 
 function damageCrystal(k) {
@@ -825,7 +874,17 @@ function updateRestorables() {
   const p = player;
   for (const r of restorables) {
     r.sway += 0.05;
-    if (r.state === 'restored') continue;
+    if (r.state === 'restored') {
+      // restored clams are springboards: land on one to launch skyward
+      if (r.kind === 'clam' && p.vy > 0.5 &&
+          aabb(p, { x: r.x + 1, y: r.y + 8, w: 22, h: 16 })) {
+        p.vy = -13.5;                              // TODO: tune launch strength
+        p.squash = 8;
+        spawnBurst(r.x + 12, r.y + 10, ['#ff8fa3','#ffd97a','#8fe0b0','#9fc8ff'], 12);
+        addScore(10);
+      }
+      continue;
+    }
     if (r.state === 'restoring') {
       if (--r.t <= 0) { r.state = 'restored'; onRestored(r); }
       continue;
@@ -845,12 +904,22 @@ function updateRestorables() {
 function onRestored(r) {
   addScore(300);
   const c0 = Math.floor(r.x / TILE), r0 = Math.floor(r.y / TILE);
-  for (const dc of [2, 3]) {
-    solids.push({ x: (c0 + dc) * TILE, y: (r0 - 2) * TILE, w: TILE, h: TILE });
-    solidSet.add((c0 + dc) + ',' + (r0 - 2));
+  if (r.kind === 'palm') {
+    // reward platform + fruit beside the tree
+    for (const dc of [2, 3]) {
+      solids.push({ x: (c0 + dc) * TILE, y: (r0 - 2) * TILE, w: TILE, h: TILE });
+      solidSet.add((c0 + dc) + ',' + (r0 - 2));
+    }
+    fruits.push({ x: (c0 + 2) * TILE + 12, y: (r0 - 3) * TILE + 12, r: 7, got: false, bob: 0 },
+                { x: (c0 + 3) * TILE + 12, y: (r0 - 3) * TILE + 12, r: 7, got: false, bob: 1 });
+  } else if (r.kind === 'gate') {
+    // colour gate: the bridge grows across the pit to the right of the gate
+    for (const dc of [1, 2, 3, 4]) {                    // TODO: tune span to the pit width
+      solids.push({ x: (c0 + dc) * TILE, y: (r0 + 1) * TILE, w: TILE, h: TILE });
+      solidSet.add((c0 + dc) + ',' + (r0 + 1));
+    }
   }
-  fruits.push({ x: (c0 + 2) * TILE + 12, y: (r0 - 3) * TILE + 12, r: 7, got: false, bob: 0 },
-              { x: (c0 + 3) * TILE + 12, y: (r0 - 3) * TILE + 12, r: 7, got: false, bob: 1 });
+  // clam needs no structure — restored clams ARE the springboard (see update)
   spawnBurst(r.x + 12, r.y - 30, ['#ff5f8d','#ffd23f','#3ddc84','#4cc9f0','#fff'], 30);
 }
 
@@ -1037,6 +1106,12 @@ function update() {
     else if (c.windup > 0) vx = 0;                               // freeze during wind-up
     else if (c.reclaim) vx = (c.vx > 0 ? 1 : -1) * 0.55;         // focused scuttle to the drop
     else vx = (c.vx > 0 ? 1 : -1) * (c.kind === 'sucker' ? 0.4 : 0.7) * calm;
+    // cliff sense: patrolling crabs turn back at ledges/pits (chargers may dash off)
+    if (c.onG && c.charge <= 0 && vx !== 0) {
+      const aheadC = Math.floor((c.x + c.w/2 + Math.sign(vx) * 14) / TILE);
+      const belowR = Math.floor((c.y + c.h + 6) / TILE);
+      if (!solidSet.has(aheadC + ',' + belowR)) { c.vx *= -1; vx = -vx; }
+    }
     c.x += vx;
     let hitWall = false;
     for (const s of solids) { if (aabb(c, s)) { if (vx>0) c.x=s.x-c.w; else c.x=s.x+s.w; hitWall = true; } }
@@ -1047,6 +1122,14 @@ function update() {
     c.vy = (c.vy || 0) + GRAV; if (c.vy > 12) c.vy = 12;
     c.onG = false; c.y += c.vy;
     for (const s of solids) { if (aabb(c, s)) { if (c.vy>0){c.y=s.y-c.h;c.onG=true;} c.vy=0; } }
+
+    // safety net: a crab that falls out of the level is cleansed, and any
+    // colour it held (or would drop) is released back into play up top
+    if (c.y > level.h + 60) {
+      c.dead = true; greyLeft--;
+      if (dropLoop) spawnColourDrops(clampv(c.x, 24, level.w - 24), level.h - 90, 3 + c.carrying.length);
+      continue;
+    }
 
     // Claw hit — swipe the crab (armoured crate takes 2)
     if (atkBox && c.hitFlash <= 0 && aabb(c, atkBox)) { damageCrab(c, p.face); if (c.dead) continue; }
@@ -1301,7 +1384,7 @@ function draw() {
   for (const s of solids) drawBlock(s);            // ground / blocks (themed, neighbour-aware)
   for (const n of nests) if (!n.dead) drawNest(n); // grey nests (drain pressure)
   for (const k of crystals) drawCrystal(k);        // sealed grey shell crystals
-  for (const r of restorables) if (r.state !== 'restored') drawPalmGrey(r);
+  for (const r of restorables) if (r.state !== 'restored') drawRestorableGrey(r);
   for (const c of enemies) if (!c.dead) drawCrab(c); // hybrid crabs (grey until rescued)
   if (boss && !boss.dead) drawBoss(boss);
   ctx.restore();
@@ -1317,7 +1400,7 @@ function draw() {
   for (const f of fruits) if (!f.got && !f.hidden) drawFruit(f);
   for (const h of hearts) if (!h.got) drawHeartPickup(h);
   // freed colour stays vivid even in a grey world (it IS the colour)
-  for (const r of restorables) if (r.state !== 'grey') drawPalmRestored(r);
+  for (const r of restorables) if (r.state !== 'grey') drawRestorableAlive(r);
   for (const r of restorables) drawRestoreBubble(r);
   for (const d of drops) drawDrop(d);
   drawPinny(player);
@@ -2065,6 +2148,75 @@ function drawCrystal(k) {
   ctx.restore();
 }
 
+// --- Restorables: grey (world layer, greys with the tide) vs alive (fg layer,
+// always colourful — restored life glows in a grey world). Dispatch by kind. ---
+function drawRestorableGrey(r) {
+  if (r.kind === 'clam') return drawClamGrey(r);
+  if (r.kind === 'gate') return drawGateGrey(r);
+  drawPalmGrey(r);
+}
+function drawRestorableAlive(r) {
+  if (r.kind === 'clam') return drawClamAlive(r);
+  if (r.kind === 'gate') return drawGateAlive(r);
+  drawPalmRestored(r);
+}
+
+// Clam lift: sealed grey clam -> open clam with a glowing pearl springboard.
+function drawClamGrey(r) {
+  const cx = r.x + 12, base = r.y + TILE;
+  const jit = r.state === 'restoring' ? Math.sin(r.sway * 30) * 1.5 : 0;
+  ctx.save(); ctx.translate(jit, 0);
+  ctx.fillStyle = 'rgba(10,5,20,0.2)';
+  ctx.beginPath(); ctx.ellipse(cx, base, 12, 2.4, 0, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#84848e';
+  ctx.beginPath(); ctx.moveTo(cx-12, base); ctx.quadraticCurveTo(cx, base-20, cx+12, base); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#5c5c66'; ctx.lineWidth = 1.2;
+  for (const a of [-6, 0, 6]) { ctx.beginPath(); ctx.moveTo(cx+a, base-2); ctx.lineTo(cx+a*0.4, base-14); ctx.stroke(); }
+  ctx.restore();
+}
+function drawClamAlive(r) {
+  const cx = r.x + 12, base = r.y + TILE;
+  const pu = 1 + Math.sin(r.sway * 2) * 0.12;
+  ctx.save();
+  ctx.fillStyle = '#ff8fa3';                                   // open upper shell
+  ctx.beginPath(); ctx.moveTo(cx-12, base-10); ctx.quadraticCurveTo(cx, base-26, cx+12, base-10); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffc9d4';                                   // lower shell (the pad)
+  ctx.beginPath(); ctx.moveTo(cx-12, base); ctx.quadraticCurveTo(cx, base-14, cx+12, base); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(159,200,255,0.5)';                     // pearl glow
+  ctx.beginPath(); ctx.arc(cx, base-9, 7*pu, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#e8f4ff';
+  ctx.beginPath(); ctx.arc(cx, base-9, 4.2, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx-1.8, base-11.5, 1.6, 1.6);
+  ctx.restore();
+}
+
+// Colour gate: dull grey pillar -> blooming coral post (its bridge tiles are
+// added as real solids by onRestored, so the path simply grows into place).
+function drawGateGrey(r) {
+  const cx = r.x + 12, base = r.y + TILE;
+  const jit = r.state === 'restoring' ? Math.sin(r.sway * 30) * 1.5 : 0;
+  ctx.save(); ctx.translate(jit, 0);
+  ctx.fillStyle = '#7d7d85'; ctx.fillRect(cx-3, base-30, 6, 30);
+  ctx.fillStyle = '#8d8d95';
+  ctx.beginPath(); ctx.arc(cx, base-32, 6, 0, 6.28); ctx.fill();
+  ctx.strokeStyle = '#5c5c66'; ctx.lineWidth = 1.2;            // dull cracks
+  ctx.beginPath(); ctx.moveTo(cx-2, base-34); ctx.lineTo(cx+2, base-30); ctx.stroke();
+  ctx.restore();
+}
+function drawGateAlive(r) {
+  const cx = r.x + 12, base = r.y + TILE;
+  ctx.save();
+  ctx.fillStyle = '#ff7a9d'; ctx.fillRect(cx-3, base-30, 6, 30);   // coral post
+  for (const [dy, s] of [[-32, 6], [-22, 4], [-12, 4]]) {          // coral buds
+    ctx.fillStyle = ['#ffd23f','#ff7a9d','#c86bff'][(dy/10|0)%3 < 0 ? 0 : Math.abs(dy/10|0)%3];
+    ctx.beginPath(); ctx.arc(cx + (dy%20===0?-5:5), base+dy, s*0.7, 0, 6.28); ctx.fill();
+  }
+  ctx.fillStyle = '#ffd23f';
+  ctx.beginPath(); ctx.arc(cx, base-32, 6, 0, 6.28); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx-1.5, base-34, 1.6, 1.6);
+  ctx.restore();
+}
+
 // --- Restorable palm: grey/drooping -> restoring (shaking) -> restored. ---
 function drawPalmGrey(r) {
   const cx = r.x + 12, base = r.y + TILE;
@@ -2447,18 +2599,42 @@ function startGame() {
   endScreen.classList.add('hidden');
   shopScreen.classList.add('hidden');
   charScreen.classList.add('hidden');
+  document.getElementById('resultsScreen').classList.add('hidden');
   scene = 'play';
   buildLevel(levelIndex);
   running = true;
 }
 
 // Finishing a level opens the shop (spend watermelons) before the next one.
+// Drop-loop levels show the restoration results first.
 function finishLevel() {
   running = false;
   if (testMode) { buildLevel(levelIndex); running = true; return; }   // test room just loops
+  if (dropLoop) { showResults(); return; }
   if (levelIndex + 1 < LEVELS.length) openShop();
   else endGame(true);
 }
+
+// Results: casual clear shows progress; 100% (all cleansed + all restored +
+// all colour gathered) earns the shiny title. Continue -> shop -> next level.
+function showResults() {
+  const cleansed = enemies.filter(e => e.dead).length, crabsAll = totalGrey;
+  const restored = restorables.filter(r => r.state === 'restored').length, objAll = restorables.length;
+  const pct = Math.round(tide * 100);
+  document.getElementById('resCrabs').textContent = cleansed + '/' + crabsAll;
+  document.getElementById('resObjects').textContent = restored + '/' + objAll;
+  document.getElementById('resTide').textContent = pct + '%';
+  const perfect = cleansed === crabsAll && restored === objAll && crystals.every(k => k.cracked) && drops.length === 0;
+  document.getElementById('resHint').textContent = perfect
+    ? '⭐ 100% — every drop of colour is flowing again! ⭐'
+    : 'The colour flows again… some grey is still out there. Replay any time!';
+  document.getElementById('resultsScreen').classList.remove('hidden');
+}
+document.getElementById('resultsContinue').addEventListener('click', () => {
+  document.getElementById('resultsScreen').classList.add('hidden');
+  if (levelIndex + 1 < LEVELS.length) openShop();
+  else endGame(true);
+});
 function advanceLevel() {
   levelIndex++;
   buildLevel(levelIndex);
