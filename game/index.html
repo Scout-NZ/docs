@@ -923,7 +923,12 @@ function updateDrops() {
   for (const d of drops) {
     d.t++; d.bob += 0.12;
     if (d.state === 'burst') {
-      d.vy += 0.28; d.x += d.vx; d.y += d.vy;
+      d.vy += 0.28;
+      // walls: bounce off sideways instead of sinking into a tile
+      const wc = Math.floor((d.x + d.vx + Math.sign(d.vx) * 3) / TILE);
+      if (solidSet.has(wc + ',' + Math.floor(d.y / TILE))) d.vx *= -0.6;
+      else d.x += d.vx;
+      d.y += d.vy;
       const tc = Math.floor(d.x / TILE), tr = Math.floor((d.y + 4) / TILE);
       if (d.vy > 0 && solidSet.has(tc + ',' + tr)) {
         d.y = tr * TILE - 4;
@@ -938,9 +943,11 @@ function updateDrops() {
       d.x += dx / m * sp; d.y += dy / m * sp;
       if (m < 6) { d.state = 'idle'; d.base = d.homeY; }
     }
-    // never-lost safety net (off the level, or stuck/unclaimed for ~15s)
+    // never-lost safety net (off the level, stuck/unclaimed for ~15s, or
+    // embedded inside a tile where the player can't reach it — fly home NOW)
     if (d.state !== 'return' &&
-        (d.y > level.h + 30 || d.x < -20 || d.x > level.w + 20 || d.t > 900)) {
+        (d.y > level.h + 30 || d.x < -20 || d.x > level.w + 20 || d.t > 900 ||
+         solidSet.has(Math.floor(d.x / TILE) + ',' + Math.floor(d.y / TILE)))) {
       d.state = 'return'; d.t = 0;
     }
     // collect (generous kid-sized radius)
@@ -988,9 +995,9 @@ function onRestored(r) {
   addScore(300);
   const c0 = Math.floor(r.x / TILE), r0 = Math.floor(r.y / TILE);
   if (r.kind === 'palm') {
-    // reward platform + fruit beside the tree
+    // reward platform + fruit beside the tree (one-way: it can never block)
     for (const dc of [2, 3]) {
-      solids.push({ x: (c0 + dc) * TILE, y: (r0 - 2) * TILE, w: TILE, h: TILE });
+      solids.push({ x: (c0 + dc) * TILE, y: (r0 - 2) * TILE, w: TILE, h: TILE, oneWay: true });
       solidSet.add((c0 + dc) + ',' + (r0 - 2));
     }
     fruits.push({ x: (c0 + 2) * TILE + 12, y: (r0 - 3) * TILE + 12, r: 7, got: false, bob: 0 },
@@ -1041,9 +1048,13 @@ function aabb(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 // Move an entity by (vx,vy) resolving against solids axis-by-axis.
+// oneWay solids (palm reward platforms) never block: walk through them
+// sideways, jump up through them, and only land when falling onto the top —
+// so restoring an object can never wall off the path.
 function moveAndCollide(e) {
   e.x += e.vx;
   for (const s of solids) {
+    if (s.oneWay) continue;
     if (aabb(e, s)) {
       if (e.vx > 0) e.x = s.x - e.w;
       else if (e.vx < 0) e.x = s.x + s.w;
@@ -1054,6 +1065,10 @@ function moveAndCollide(e) {
   e.y += e.vy;
   for (const s of solids) {
     if (aabb(e, s)) {
+      if (s.oneWay) {
+        if (e.vy > 0 && e.y + e.h - e.vy <= s.y + 1) { e.y = s.y - e.h; e.onGround = true; e.vy = 0; }
+        continue;
+      }
       if (e.vy > 0) { e.y = s.y - e.h; e.onGround = true; }
       else if (e.vy < 0) e.y = s.y + s.h;
       e.vy = 0;
