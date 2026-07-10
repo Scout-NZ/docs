@@ -19,9 +19,14 @@ world becomes (watch the **COLOUR** meter at the top).
 - Grab the **watermelon slices** 🍉 for points
 - Grab a floating **heart** ❤️ for an extra life (up to 5)
 - Reach the **pink flag** to finish the level
-- You have **3 lives** ❤️❤️❤️. Getting bumped from the side, hit by a shot, or
-  falling in a pit costs a life and **restarts the level**; lose all three and
-  it's game over. Watermelons, stars and upgrades you've earned carry over.
+- You have **3 lives** ❤️❤️❤️. Running out of hearts or falling in a pit costs
+  a life: a quick **"OUCH!" screen shows how many lives are left** (tap to skip
+  it), then the level restarts. Lose all three and it's game over. Watermelons,
+  stars and upgrades you've earned carry over.
+- **Every world runs the colour-drop loop now**: each level hides two grey
+  shell crystals and a grey palm. Crack shells and crabs to free colour drops,
+  gather them (they can never be lost), restore the palm for a bonus platform
+  with fruit, and finish to see that world's **RESTORED!** results screen.
 - In the **shop**, tap **anywhere on a card** to buy it — the big "YOU HAVE 🍉"
   pill shows how many watermelons you've got.
 

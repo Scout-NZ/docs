@@ -250,7 +250,7 @@
   <!-- Level results (drop-loop levels) -->
   <div class="screen hidden" id="resultsScreen">
     <div class="big-emoji">🌈</div>
-    <div class="title" style="font-size:clamp(22px,6vw,38px)">BEACH RESTORED!</div>
+    <div class="title" id="resTitle" style="font-size:clamp(22px,6vw,38px)">BEACH RESTORED!</div>
     <div class="results-card">
       <div class="res-row"><span>🦀 Crabs cleansed</span><b id="resCrabs">0/0</b></div>
       <div class="res-row"><span>🌴 Objects restored</span><b id="resObjects">0/0</b></div>
@@ -258,6 +258,15 @@
     </div>
     <div class="hint" id="resHint"></div>
     <button class="play" id="resultsContinue">CONTINUE ▶</button>
+  </div>
+
+  <!-- Life lost (breather screen before the level restarts) -->
+  <div class="screen hidden" id="lifeScreen">
+    <div class="big-emoji">😵</div>
+    <div class="title" style="font-size:clamp(24px,6vw,40px)">OUCH!</div>
+    <div class="stat" id="lifeHearts" style="font-size:clamp(28px,8vw,44px);letter-spacing:4px"></div>
+    <div class="sub" id="lifeMsg"></div>
+    <div class="hint">Tap to try again</div>
   </div>
 
   <!-- End screen (win/lose) -->
@@ -552,7 +561,7 @@ const LEVELS = [
     "..X....o..o...XXXXXXX....XXXX..........X......",
     "..X..XXXXXX..........G..............G..X......",
     "XXXX........XX..............XXXXXXXXXXXX......",
-    "X.........H.........G.........................",
+    "X..C......H..C......G......R..................",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -570,7 +579,7 @@ const LEVELS = [
     ".X..........XXX...............XXXX.....X...........",
     ".X..o..............G.....................X.........",
     ".XXXX...XXXX....XXXXXXX...G......XXXXXXXXXX........",
-    ".X........H.............XXXX.......................",
+    ".X...R....H..C....C.....XXXX.......................",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -585,9 +594,9 @@ const LEVELS = [
     "...............................................",
     "...................o...........................",
     ".................XXXX..........................",
-    ".......XXXX................XXXX.............o..",
+    "...C...XXXX................XXXX.............o..",
     "...XXXX........XXXX....XXXX........XXXXX.......",
-    "..P...G..H..G..N...G......G....G.......F.......",
+    "..P...G..H..G..N...G..R...G....G..C....F.......",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -604,7 +613,7 @@ const LEVELS = [
     ".................XXXX.........................",
     "..........XXXX................................",
     "...XXXX........XXXX....XXXX.......XXXX........",
-    "..P....G..H...G.......G......G.....G....F.....",
+    "..P....G..H...G....R..G..C...G..C..G....F.....",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -619,9 +628,9 @@ const LEVELS = [
     "..............................................",
     ".........o.........o.........o................",
     ".......XXXX.......XXXX.......XXXX.............",
-    "..............................................",
+    "....R..C......................................",
     "....XXXX......XXXX......XXXX......XXXX........",
-    ".P..G.H.G..N.G....G....G....G....G.....F......",
+    ".P..G.H.G..N.G....G....G....G....G..C..F......",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   ],
@@ -634,9 +643,9 @@ const LEVELS = [
     "..............................................",
     "..............................................",
     "..............................................",
-    "....o......o......o......o......o......o......",
+    "..R.o......o......o......o......o......o......",
     "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
-    "..............................................",
+    "...C.....C....................................",
     "..XXXX...XXXX...XXXX...XXXX...XXXX...XXXX.....",
     ".P..G..G..G..G..G..N..G..G..G..G..G.H..F......",
     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
@@ -1416,8 +1425,24 @@ function damagePlayer(kbDir) {
 function loseLife() {
   lives--;
   spawnBurst(player.x + player.w/2, player.y + player.h/2, ['#ff3b5c','#ffd23f','#fff'], 18);
-  if (lives <= 0) endGame(false);
-  else buildLevel(levelIndex);               // buildLevel refills hearts
+  if (lives <= 0) return endGame(false);
+  // Breather screen: show how many lives are left before the level restarts.
+  running = false;
+  const shown = Math.max(3, lives);
+  document.getElementById('lifeHearts').textContent =
+    '❤️'.repeat(lives) + '🖤'.repeat(shown - lives);
+  const who = (CHARACTERS.find(c => c.id === selectedChar) || CHARACTERS[0]).name;
+  document.getElementById('lifeMsg').textContent =
+    lives === 1 ? `Last life — you can do it, ${who}!` : `${who} has ${lives} lives left`;
+  lifeScreen.classList.remove('hidden');
+  lifeTimer = setTimeout(resumeAfterLife, 3000);   // auto-continue so kids never get stuck
+}
+function resumeAfterLife() {
+  clearTimeout(lifeTimer);
+  if (lifeScreen.classList.contains('hidden')) return;
+  lifeScreen.classList.add('hidden');
+  buildLevel(levelIndex);                    // buildLevel refills hearts
+  running = true;
 }
 
 // Land a hit on the boss (stomp or claw). dir = knockback direction (0 = none).
@@ -2712,6 +2737,10 @@ function openCharSelect() {
 }
 
 const shopScreen = document.getElementById('shopScreen');
+const lifeScreen = document.getElementById('lifeScreen');
+let lifeTimer = null;
+// Tap anywhere to skip the breather (or wait for the auto-continue)
+lifeScreen.addEventListener('pointerdown', resumeAfterLife);
 
 function startGame() {
   // Apply the chosen crab: its sprite plus a small signature perk.
@@ -2731,6 +2760,7 @@ function startGame() {
   endScreen.classList.add('hidden');
   shopScreen.classList.add('hidden');
   charScreen.classList.add('hidden');
+  lifeScreen.classList.add('hidden');
   document.getElementById('resultsScreen').classList.add('hidden');
   scene = 'play';
   buildLevel(levelIndex);
@@ -2750,6 +2780,7 @@ function finishLevel() {
 // Results: casual clear shows progress; 100% (all cleansed + all restored +
 // all colour gathered) earns the shiny title. Continue -> shop -> next level.
 function showResults() {
+  document.getElementById('resTitle').textContent = theme.name + ' RESTORED!';
   const cleansed = enemies.filter(e => e.dead).length, crabsAll = totalGrey;
   const restored = restorables.filter(r => r.state === 'restored').length, objAll = restorables.length;
   const pct = Math.round(tide * 100);
