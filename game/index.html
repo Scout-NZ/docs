@@ -352,6 +352,7 @@ const ART_SPRITES = {
   // playable hero sprites (generated from the crab collection)
   char_yeti:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075557_fc604099-1e0e-4e07-a44e-10b1da434350.png', key:[255,0,255] },
   char_candy: { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260708_075634_8a49e69a-1a7a-44ef-8786-4ee95553d3b8.png', key:[255,0,255] },
+  char_coco:  { url:'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045959_bbff7f4c-12d0-465d-ba96-4a414f4bbe03.png', key:[255,0,255] },
 };
 const ABASE = 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/';
 // Per-state animation FRAMES (Stage 2 of the World One brief). Each state
@@ -361,11 +362,23 @@ const ABASE = 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzF
 // mirror them here. Any state with no frames falls back to the single
 // sprite + procedural motion, so the game always works while art is missing.
 const ART_FRAMES = {
-  pinny: { key:[255,0,255], fps:{ idle:3, walk:8, claw:14, hurt:10 }, states:{
-    // idle:[u,u], walk:[u,u], jump:[u], fall:[u], claw:[u,u], hurt:[u]
+  pinny: { key:[255,0,255], fps:{ idle:3, walk:8, claw:14, hurt:10, celebrate:8 }, states:{
+    idle: [ABASE+'hf_20260710_045644_188bde1a-c150-4b14-8c78-706bc9a8cb96_min.webp',
+           ABASE+'hf_20260710_045648_93836654-7f6c-44e2-91a5-7161fc5ff0a9_min.webp'],
+    walk: [ABASE+'hf_20260710_045652_3cc6d5b4-3004-4f32-8d57-49e2bb7efa22_min.webp',
+           ABASE+'hf_20260710_045656_93251432-9a73-4f6b-9029-065dd5a003fe_min.webp'],
+    jump: [ABASE+'hf_20260710_045700_60f6134c-b36b-4ecb-a4b1-0ca91a6fc746_min.webp'],
+    fall: [ABASE+'hf_20260710_045703_08430673-05b8-492d-b6cc-b01d10be99fb_min.webp'],
+    claw: [ABASE+'hf_20260710_045707_1ce627ee-9c42-4df8-be81-2b5b334ffa91_min.webp',
+           ABASE+'hf_20260710_045711_0443f0e5-f51f-4114-9923-d62c7e31d34f_min.webp'],
+    hurt: [ABASE+'hf_20260710_045933_cda161ac-31f7-48c1-9d0f-9161733f47c7_min.webp'],
+    celebrate: [ABASE+'hf_20260710_045937_5f7c6bd9-e603-4558-8e0a-0ac48ddfca80_min.webp'],
   }},
   grey:  { key:[255,0,255], fps:{ idle:3, walk:6, reclaim:8 }, states:{
-    // idle:[u], walk:[u,u], reclaim:[u]
+    idle: [ABASE+'hf_20260710_045940_b27cad50-a022-45b1-8d55-34a1da1c6619_min.webp'],
+    walk: [ABASE+'hf_20260710_045944_dddc5391-d41c-4344-bf70-d551712b86f2_min.webp',
+           ABASE+'hf_20260710_045948_14ac6d54-5a75-45da-b9e6-883b7e563cd0_min.webp'],
+    reclaim: [ABASE+'hf_20260710_045951_6d06f439-5635-4852-be46-2e46486823d3_min.webp'],
   }},
 };
 const frameArt = {};   // name -> { fps, <state>: [keyed canvases] }
@@ -493,7 +506,7 @@ function loadArt() {
     img.src = HOME_BG;
   }
 }
-const HOME_BG = '';        // <-- drop the generated house image URL here
+const HOME_BG = 'https://d8j0ntlcm91z4.cloudfront.net/user_3G9WxhGTixsNfzfeyuvKzzFTG9O/hf_20260710_045955_ef9db3d6-c6f5-4436-99fb-bf025f87d7ee_min.webp';   // Pip's beach house (Higgsfield)
 let homeBgImg = null;
 loadArt();
 
@@ -2618,14 +2631,14 @@ const CHARACTERS = [
   { id:'pinny', name:'Pinny',  tag:'Pineapple Watermelon Crab', emoji:'🍍', sprite:'pinny',      unlocked:true,  perk:'All-rounder' },
   { id:'yeti',  name:'Frosty', tag:'Yeti Crab',                 emoji:'❄️', sprite:'char_yeti',  unlocked:true,  perk:'+1 heart ❤️', perkHeart:true },
   { id:'candy', name:'Lolly',  tag:'Candy Crab',                emoji:'🍭', sprite:'char_candy', unlocked:true,  perk:'Higher jump ⬆️', perkJump:true },
-  { id:'coco',  name:'Coco',   tag:'Coconut Crab',              emoji:'🥥', sprite:null,         unlocked:false },
+  { id:'coco',  name:'Coco',   tag:'Coconut Crab',              emoji:'🥥', sprite:'char_coco',  unlocked:true,  perk:'Mighty claw 💥', perkClaw:true },
 ];
 let selectedChar = 'pinny';
 let curHeroSprite = 'pinny';                 // which loaded sprite the hero renders as
 // Whether each hero sprite's art needs mirroring so it faces the way it moves.
 // Pinny's source art faces left (mirror = true); Frosty/Lolly were generated
 // facing the other way, so they must NOT be mirrored.
-const CHAR_FLIP = { pinny:true, char_yeti:true, char_candy:false };   // confirmed in play
+const CHAR_FLIP = { pinny:true, char_yeti:true, char_candy:false, char_coco:true };   // confirmed in play
 
 function cardBaseCanvas() {
   const c = document.createElement('canvas'); c.width = 96; c.height = 96;
@@ -2703,7 +2716,7 @@ function startGame() {
   levelIndex = 0; score = 0; melons = 0;
   lives = 3;
   maxHp = 3 + (chr.perkHeart ? 1 : 0);   // Frosty's perk: an extra heart per life
-  upg = { jump: chr.perkJump ? 1 : 0, claw: 0, speed: 0, colour: 0 };
+  upg = { jump: chr.perkJump ? 1 : 0, claw: chr.perkClaw ? 1 : 0, speed: 0, colour: 0 };
   // Optional level jump: open the game with #3 in the URL to start on level 3.
   // '#test' opens the mechanics test room (colour drops, crystals, restorables).
   testMode = location.hash === '#test';
