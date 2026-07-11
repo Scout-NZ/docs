@@ -123,6 +123,240 @@
           ]
         }
       }
+    },
+    "char_yeti": {
+      "subject": "Frosty the fluffy yeti crab hero, shaggy white fur, grumpy furrowed face, small dark eyes, big claws",
+      "key_colour": "#FF00FF",
+      "facing": "left",
+      "reference_job": "fc604099-1e0e-4e07-a44e-10b1da434350",
+      "method": "generate EVERY frame as a pose-only image-to-image EDIT of this hero's base sprite (pass reference_job as the media): identical character, identical size/colours/background, change only the pose described",
+      "states": {
+        "idle": {
+          "fps": 3,
+          "poses": [
+            "standing relaxed on all legs, claws resting low, eye open and bright",
+            "standing relaxed, body lifted a touch as if breathing in, eye half closed in a slow blink"
+          ],
+          "urls": [
+            "",
+            ""
+          ]
+        },
+        "walk": {
+          "fps": 8,
+          "poses": [
+            "mid-scuttle with left legs forward and right legs back, claws swinging slightly",
+            "mid-scuttle with right legs forward and left legs back, body bobbed a little lower"
+          ],
+          "urls": [
+            "",
+            ""
+          ]
+        },
+        "jump": {
+          "fps": 1,
+          "poses": [
+            "leaping upward, body stretched tall, legs trailing below, claws raised for balance"
+          ],
+          "urls": [
+            ""
+          ]
+        },
+        "fall": {
+          "fps": 1,
+          "poses": [
+            "falling, body tilted slightly forward, legs tucked up, claws open wide"
+          ],
+          "urls": [
+            ""
+          ]
+        },
+        "claw": {
+          "fps": 14,
+          "poses": [
+            "winding up a claw strike, leading claw pulled back and open wide",
+            "claw snapped shut at full forward extension, motion feeling, body leaning into the strike"
+          ],
+          "urls": [
+            "",
+            ""
+          ]
+        },
+        "hurt": {
+          "fps": 10,
+          "poses": [
+            "knocked back, eye squeezed shut, legs splayed, claws flinched inward"
+          ],
+          "urls": [
+            ""
+          ]
+        },
+        "celebrate": {
+          "fps": 8,
+          "poses": [
+            "joyful victory hop, both claws raised high, mid-bounce"
+          ],
+          "urls": [
+            ""
+          ]
+        }
+      }
+    },
+    "char_candy": {
+      "subject": "Lolly the candy superhero crab hero, bright candy shell, big shiny black eyes, big claws",
+      "key_colour": "#FF00FF",
+      "facing": "right",
+      "reference_job": "8a49e69a-1a7a-44ef-8786-4ee95553d3b8",
+      "method": "generate EVERY frame as a pose-only image-to-image EDIT of this hero's base sprite (pass reference_job as the media): identical character, identical size/colours/background, change only the pose described",
+      "states": {
+        "idle": {
+          "fps": 3,
+          "poses": [
+            "standing relaxed on all legs, claws resting low, eye open and bright",
+            "standing relaxed, body lifted a touch as if breathing in, eye half closed in a slow blink"
+          ],
+          "urls": [
+            "",
+            ""
+          ]
+        },
+        "walk": {
+          "fps": 8,
+          "poses": [
+            "mid-scuttle with left legs forward and right legs back, claws swinging slightly",
+            "mid-scuttle with right legs forward and left legs back, body bobbed a little lower"
+          ],
+          "urls": [
+            "",
+            ""
+          ]
+        },
+        "jump": {
+          "fps": 1,
+          "poses": [
+            "leaping upward, body stretched tall, legs trailing below, claws raised for balance"
+          ],
+          "urls": [
+            ""
+          ]
+        },
+        "fall": {
+          "fps": 1,
+          "poses": [
+            "falling, body tilted slightly forward, legs tucked up, claws open wide"
+          ],
+          "urls": [
+            ""
+          ]
+        },
+        "claw": {
+          "fps": 14,
+          "poses": [
+            "winding up a claw strike, leading claw pulled back and open wide",
+            "claw snapped shut at full forward extension, motion feeling, body leaning into the strike"
+          ],
+          "urls": [
+            "",
+            ""
+          ]
+        },
+        "hurt": {
+          "fps": 10,
+          "poses": [
+            "knocked back, eye squeezed shut, legs splayed, claws flinched inward"
+          ],
+          "urls": [
+            ""
+          ]
+        },
+        "celebrate": {
+          "fps": 8,
+          "poses": [
+            "joyful victory hop, both claws raised high, mid-bounce"
+          ],
+          "urls": [
+            ""
+          ]
+        }
+      }
+    },
+    "char_coco": {
+      "subject": "Coco the coconut crab hero, round fuzzy brown coconut-shell body with fibrous husk texture, pale cracked-coconut white belly, two big friendly eyes, sturdy chunky claws",
+      "key_colour": "#FF00FF",
+      "facing": "left",
+      "reference_job": "bbff7f4c-12d0-465d-ba96-4a414f4bbe03",
+      "method": "generate EVERY frame as a pose-only image-to-image EDIT of this hero's base sprite (pass reference_job as the media): identical character, identical size/colours/background, change only the pose described",
+      "states": {
+        "idle": {
+          "fps": 3,
+          "poses": [
+            "standing relaxed on all legs, claws resting low, eye open and bright",
+            "standing relaxed, body lifted a touch as if breathing in, eye half closed in a slow blink"
+          ],
+          "urls": [
+            "",
+            ""
+          ]
+        },
+        "walk": {
+          "fps": 8,
+          "poses": [
+            "mid-scuttle with left legs forward and right legs back, claws swinging slightly",
+            "mid-scuttle with right legs forward and left legs back, body bobbed a little lower"
+          ],
+          "urls": [
+            "",
+            ""
+          ]
+        },
+        "jump": {
+          "fps": 1,
+          "poses": [
+            "leaping upward, body stretched tall, legs trailing below, claws raised for balance"
+          ],
+          "urls": [
+            ""
+          ]
+        },
+        "fall": {
+          "fps": 1,
+          "poses": [
+            "falling, body tilted slightly forward, legs tucked up, claws open wide"
+          ],
+          "urls": [
+            ""
+          ]
+        },
+        "claw": {
+          "fps": 14,
+          "poses": [
+            "winding up a claw strike, leading claw pulled back and open wide",
+            "claw snapped shut at full forward extension, motion feeling, body leaning into the strike"
+          ],
+          "urls": [
+            "",
+            ""
+          ]
+        },
+        "hurt": {
+          "fps": 10,
+          "poses": [
+            "knocked back, eye squeezed shut, legs splayed, claws flinched inward"
+          ],
+          "urls": [
+            ""
+          ]
+        },
+        "celebrate": {
+          "fps": 8,
+          "poses": [
+            "joyful victory hop, both claws raised high, mid-bounce"
+          ],
+          "urls": [
+            ""
+          ]
+        }
+      }
     }
   },
   "future": {
