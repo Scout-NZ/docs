@@ -87,6 +87,10 @@ internal review of the site; every item blocks public launch unless noted.
       *Blocks launch — until then the form does not send.*
 - [ ] **Open Graph image** (`og:image`): none is set. Supply a 1200x630
       image (ideally from the photo library) and add the tag to each page.
+- [ ] **Official logo vectors**: the wordmark, A mark, and favicon on the
+      site are SVG recreations traced from the supplied image files. If the
+      original designer's vector files (AI/EPS/SVG) exist, swap them in —
+      the three locations are listed in BUILD-NOTES.md under "The logo".
 - [ ] **Domain**: canonical URLs are set to https://teawhi.co.nz — confirm
       this is the launch domain (the strategy documents also mention
       teawhi.org.nz).

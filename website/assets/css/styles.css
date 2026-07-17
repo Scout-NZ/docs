@@ -223,7 +223,12 @@ cite { font-style: normal; }
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
 }
-.brand-link svg { width: 2.25rem; height: 2.25rem; flex: none; }
+/* Stencil wordmark (currentColor, themes with its surface) */
+.brand-link .logo-wordmark { height: 1.4rem; width: auto; flex: none; }
+.site-footer .logo-wordmark { height: 1.6rem; }
+@media (min-width: 40rem) {
+  .brand-link .logo-wordmark { height: 1.6rem; }
+}
 
 .header-actions { display: flex; align-items: center; gap: var(--space-xs); }
 

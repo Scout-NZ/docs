@@ -75,6 +75,25 @@ the data-sovereignty stance from the SLT website workshop. The latin-ext
 subsets carry the macrons; system serif/sans fallbacks are defined so the
 site reads correctly even if fonts fail.
 
+## The logo
+
+The Te Awhi stencil wordmark and the standalone A mark are **vector
+recreations traced from the supplied brand image files** (the team supplied
+raster images; the site needs scalable vectors). They live in three places:
+
+- Inline in the header and footer of every page, drawn with `currentColor`
+  so they theme with their surface (ink on light, paper on the dark footer).
+- `assets/img/logo-wordmark.svg` and `assets/img/logo-mark.svg` — standalone
+  files for reuse (email signatures, documents, og:image source).
+- `assets/img/favicon.svg` — the A mark alone, per the brand rule that the
+  A stands in for small square uses, with no circle background. The favicon
+  is theme-aware: pounamu on light browser chrome, paper on dark.
+
+If official vector files exist or are commissioned later, swap them in at
+those three places; the inline copies are marked with a comment
+(`Logo recreated as SVG`). The recreation matches the supplied files
+closely, but the original designer's vectors should win whenever available.
+
 ## The awa motif
 
 The animated river line (`.awa`) is an inline SVG in each page, generated
