@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rainbow Navigator — Find queer-friendly places in Aotearoa</title>
+  <meta name="description" content="A safety-first map of queer-friendly places across Aotearoa New Zealand — cafés, bars, community groups, healthcare and more. Find where community gathers and make real-life connections." />
+  <meta name="author" content="Rainbow Navigator" />
+  <link rel="icon" type="image/png" href="images/rainbow-navigator-logo.png" />
+  <link rel="apple-touch-icon" href="images/rainbow-navigator-logo.png" />
+  <meta name="theme-color" content="#7C3AED" />
+
+  <!-- Open Graph / Social -->
+  <meta property="og:title" content="Rainbow Navigator — Find queer-friendly places in Aotearoa" />
+  <meta property="og:description" content="A safety-first map of queer-friendly places across Aotearoa New Zealand — cafés, bars, community groups, healthcare and more." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="images/rainbow-navigator-logo.png" />
+  <meta name="twitter:card" content="summary" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --red: #FF5757; --orange: #FF914D; --yellow: #FFDE59; --green: #70CE88;
+      --blue: #5E9CF5; --indigo: #9B87F5; --violet: #D069C3;
+      --primary: #7C3AED;
+      --primary-soft: #f3eefe;
+      --ink: #191627;
+      --ink-soft: #565170;
+      --bg: #ffffff;
+      --bg-soft: #faf9fc;
+      --card: #ffffff;
+      --border: #e9e6f2;
+      --radius: 1rem;
+      --rainbow: linear-gradient(45deg, #FF5757, #FF914D, #FFDE59, #70CE88, #5E9CF5, #9B87F5, #D069C3);
+      --shadow: 0 10px 30px -12px rgba(25, 22, 39, 0.18);
+      --font: 'Outfit', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+    body {
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: var(--primary); }
+
+    .rainbow-text {
+      background: var(--rainbow);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 1.25rem; }
+
+    /* ---------- Header ---------- */
+    .top-ribbon { height: 5px; background: var(--rainbow); }
+    header.site {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav {
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.7rem 1.25rem; max-width: 1120px; margin: 0 auto;
+    }
+    .brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; margin-right: auto; }
+    .brand img { width: 38px; height: 38px; }
+    .brand span { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.01em; }
+    .nav-links { display: flex; gap: 1.4rem; }
+    .nav-links a {
+      text-decoration: none; color: var(--ink-soft); font-weight: 500; font-size: 0.95rem;
+    }
+    .nav-links a:hover { color: var(--ink); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      font-family: var(--font); font-weight: 600; font-size: 0.95rem;
+      border-radius: 999px; padding: 0.6rem 1.35rem;
+      border: none; cursor: pointer; text-decoration: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:focus-visible { outline: 3px solid var(--indigo); outline-offset: 2px; }
+    .btn-rainbow { background: var(--rainbow); color: #fff; box-shadow: 0 6px 18px -8px rgba(155, 135, 245, 0.8); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--indigo); }
+    .btn-lg { padding: 0.85rem 1.8rem; font-size: 1.05rem; }
+    .btn[disabled] { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .user-chip {
+      display: none; align-items: center; gap: 0.5rem;
+      background: var(--primary-soft); color: var(--primary);
+      border-radius: 999px; padding: 0.35rem 0.9rem; font-weight: 600; font-size: 0.9rem;
+      max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ---------- Hero ---------- */
+    .hero {
+      position: relative; overflow: hidden;
+      background:
+        radial-gradient(60rem 30rem at 115% -10%, rgba(155,135,245,0.16), transparent 60%),
+        radial-gradient(50rem 26rem at -15% 20%, rgba(112,206,136,0.14), transparent 60%),
+        radial-gradient(40rem 22rem at 50% 120%, rgba(255,145,77,0.10), transparent 60%),
+        var(--bg);
+    }
+    .hero-inner {
+      display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 3rem;
+      align-items: center; padding: 4.5rem 0 4rem;
+    }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: #fff; border: 1px solid var(--border); border-radius: 999px;
+      padding: 0.35rem 0.95rem; font-size: 0.85rem; font-weight: 600; color: var(--ink-soft);
+      box-shadow: 0 2px 10px -6px rgba(25,22,39,0.25);
+    }
+    .hero h1 {
+      font-size: clamp(2.3rem, 5vw, 3.5rem);
+      line-height: 1.1; letter-spacing: -0.02em; font-weight: 800;
+      margin: 1.1rem 0 1rem;
+    }
+    .hero p.lede { font-size: 1.15rem; color: var(--ink-soft); max-width: 34rem; }
+    .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.8rem; align-items: center; }
+    .trust-row {
+      display: flex; flex-wrap: wrap; gap: 1.1rem; margin-top: 1.5rem;
+      font-size: 0.9rem; color: var(--ink-soft); font-weight: 500;
+    }
+    .trust-row span { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .trust-row .tick { color: var(--green); font-weight: 800; }
+
+    .appstore-badge {
+      display: inline-flex; align-items: center; gap: 0.7rem;
+      background: var(--ink); color: #fff; border-radius: 0.8rem;
+      padding: 0.55rem 1.1rem; text-align: left; line-height: 1.15;
+      position: relative; opacity: 0.92;
+    }
+    .appstore-badge svg { width: 26px; height: 26px; flex: none; }
+    .appstore-badge .small { font-size: 0.62rem; letter-spacing: 0.02em; opacity: 0.85; }
+    .appstore-badge .big { font-size: 1.05rem; font-weight: 600; }
+    .appstore-badge .soon-tag {
+      position: absolute; top: -0.55rem; right: -0.6rem;
+      background: var(--rainbow); color: #fff; font-size: 0.62rem; font-weight: 700;
+      border-radius: 999px; padding: 0.15rem 0.55rem; letter-spacing: 0.03em;
+      box-shadow: 0 2px 8px -2px rgba(0,0,0,0.3);
+    }
+
+    /* ---------- Phone mockup ---------- */
+    .phone-wrap { display: flex; justify-content: center; position: relative; }
+    .phone-wrap::before {
+      content: ""; position: absolute; inset: 8% -4% 0 -4%;
+      background: var(--rainbow); opacity: 0.14; filter: blur(48px); border-radius: 50%;
+      z-index: 0;
+    }
+    .phone {
+      position: relative; z-index: 1;
+      width: 300px; border-radius: 2.4rem; background: #0f0d18;
+      padding: 0.65rem; box-shadow: 0 30px 60px -25px rgba(25,22,39,0.5);
+    }
+    .screen {
+      background: #fff; border-radius: 1.9rem; overflow: hidden;
+      display: flex; flex-direction: column; height: 590px;
+      font-size: 0.72rem;
+    }
+    .m-statusbar {
+      display: flex; justify-content: space-between; padding: 0.5rem 1.1rem 0.2rem;
+      font-weight: 600; font-size: 0.68rem; color: var(--ink);
+    }
+    .m-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.5rem 0.85rem;
+    }
+    .m-header .m-logo { display: flex; align-items: center; gap: 0.4rem; font-weight: 800; font-size: 0.86rem; }
+    .m-header .m-logo img { width: 22px; height: 22px; }
+    .m-signin {
+      background: var(--rainbow); color: #fff; font-weight: 600; font-size: 0.66rem;
+      padding: 0.28rem 0.7rem; border-radius: 999px;
+    }
+    .m-search {
+      margin: 0.15rem 0.85rem 0.5rem; background: #f4f3f8; border-radius: 999px;
+      padding: 0.45rem 0.8rem; color: #8b87a0; display: flex; gap: 0.4rem; align-items: center;
+    }
+    .m-chips { display: flex; gap: 0.35rem; padding: 0 0.85rem 0.55rem; overflow: hidden; }
+    .m-chip {
+      flex: none; border: 1px solid var(--border); border-radius: 999px;
+      padding: 0.25rem 0.6rem; font-weight: 600; color: var(--ink-soft); background: #fff;
+    }
+    .m-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .m-map {
+      position: relative; flex: 1; overflow: hidden;
+      background:
+        linear-gradient(rgba(94,156,245,0.07), rgba(112,206,136,0.09)),
+        repeating-linear-gradient(0deg, transparent 0 34px, rgba(25,22,39,0.05) 34px 35px),
+        repeating-linear-gradient(90deg, transparent 0 34px, rgba(25,22,39,0.05) 34px 35px),
+        #eef1ec;
+    }
+    .m-road { position: absolute; background: #ffffff; box-shadow: 0 0 0 1px rgba(25,22,39,0.05); }
+    .m-road.h { left: -5%; right: -5%; height: 14px; }
+    .m-road.v { top: -5%; bottom: -5%; width: 14px; }
+    .m-park {
+      position: absolute; background: rgba(112,206,136,0.35); border-radius: 30% 60% 50% 40%;
+    }
+    .m-water {
+      position: absolute; background: rgba(94,156,245,0.3);
+      border-radius: 60% 40% 55% 45%;
+    }
+    .pin {
+      position: absolute; width: 26px; height: 26px; border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg); display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 10px -3px rgba(25,22,39,0.4); border: 2px solid #fff;
+    }
+    .pin span { transform: rotate(45deg); font-size: 0.68rem; }
+    .pin.pulse::after {
+      content: ""; position: absolute; inset: -7px; border-radius: 50%;
+      border: 2px solid rgba(155,135,245,0.7); animation: ping 2s infinite;
+    }
+    @keyframes ping { 0% { transform: scale(0.7); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+    .m-card {
+      position: absolute; left: 0.6rem; right: 0.6rem; bottom: 0.6rem;
+      background: #fff; border-radius: 0.9rem; padding: 0.6rem 0.75rem;
+      box-shadow: 0 12px 28px -12px rgba(25,22,39,0.4);
+    }
+    .m-card .name { font-weight: 700; font-size: 0.8rem; display: flex; gap: 0.4rem; align-items: center; }
+    .m-card .verified {
+      color: #1a7f37; background: #e7f7ec; font-size: 0.6rem; font-weight: 700;
+      padding: 0.1rem 0.45rem; border-radius: 999px;
+    }
+    .m-card .meta { color: var(--ink-soft); margin-top: 0.1rem; }
+    .m-card .m-safety { margin-top: 0.3rem; display: flex; align-items: center; gap: 0.35rem; color: var(--primary); font-weight: 600; }
+    .m-nav {
+      display: flex; justify-content: space-around; align-items: center;
+      padding: 0.5rem 0.4rem 0.8rem; border-top: 1px solid var(--border); background: #fff;
+    }
+    .m-nav div { display: flex; flex-direction: column; align-items: center; gap: 0.12rem; color: #8b87a0; font-size: 0.58rem; font-weight: 600; }
+    .m-nav .center {
+      width: 42px; height: 42px; margin-top: -1.4rem; border-radius: 50%;
+      background: var(--rainbow); display: flex; align-items: center; justify-content: center;
+      font-size: 1.05rem; color: #fff; border: 3px solid #fff;
+      box-shadow: 0 6px 16px -6px rgba(155,135,245,0.9);
+    }
+    .m-nav .ico { font-size: 0.95rem; }
+
+    /* ---------- Sections ---------- */
+    section { padding: 4.5rem 0; }
+    .section-head { text-align: center; max-width: 42rem; margin: 0 auto 3rem; }
+    .section-head .kicker {
+      text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.78rem;
+      font-weight: 700; color: var(--primary);
+    }
+    .section-head h2 { font-size: clamp(1.7rem, 3.5vw, 2.4rem); letter-spacing: -0.02em; margin: 0.5rem 0 0.7rem; }
+    .section-head p { color: var(--ink-soft); font-size: 1.05rem; }
+
+    .features { background: var(--bg-soft); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.3rem; }
+    .feature-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.6rem 1.5rem; transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative; overflow: hidden;
+    }
+    .feature-card::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--stripe, var(--rainbow));
+    }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+    .feature-card .icon {
+      width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center;
+      justify-content: center; font-size: 1.4rem; margin-bottom: 1rem;
+      background: var(--tint, var(--primary-soft));
+    }
+    .feature-card h3 { font-size: 1.12rem; margin-bottom: 0.45rem; letter-spacing: -0.01em; }
+    .feature-card p { color: var(--ink-soft); font-size: 0.95rem; }
+
+    /* ---------- Safety ---------- */
+    .safety { background: var(--ink); color: #fff; position: relative; overflow: hidden; }
+    .safety::after {
+      content: ""; position: absolute; right: -140px; bottom: -140px; width: 420px; height: 420px;
+      background: url('images/rainbow-navigator-logo.png') center/contain no-repeat; opacity: 0.07;
+      pointer-events: none;
+    }
+    .safety .section-head h2, .safety h3 { color: #fff; }
+    .safety .section-head p { color: #b7b3c9; }
+    .safety-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.3rem; position: relative; z-index: 1; }
+    .safety-card {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius); padding: 1.5rem;
+    }
+    .safety-card .icon { font-size: 1.6rem; margin-bottom: 0.8rem; }
+    .safety-card h3 { font-size: 1.08rem; margin-bottom: 0.4rem; }
+    .safety-card p { color: #b7b3c9; font-size: 0.94rem; }
+    .support-line {
+      margin-top: 2.4rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;
+      justify-content: center; background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius);
+      padding: 1.1rem 1.5rem; position: relative; z-index: 1;
+    }
+    .support-line p { color: #d9d6e6; font-size: 0.95rem; }
+    .support-line strong { color: #fff; }
+    .support-line a.btn { background: #fff; color: var(--ink); }
+
+    /* ---------- For everyone ---------- */
+    .personas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.1rem; }
+    .persona {
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 1.3rem;
+      background: linear-gradient(160deg, #fff, var(--tint, var(--primary-soft)) 130%);
+    }
+    .persona .emoji { font-size: 1.6rem; }
+    .persona h3 { font-size: 1rem; margin: 0.55rem 0 0.3rem; }
+    .persona p { font-size: 0.88rem; color: var(--ink-soft); }
+
+    /* ---------- App store / download ---------- */
+    .download { background: var(--bg-soft); }
+    .download-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 1.5rem;
+      box-shadow: var(--shadow); padding: 3rem; display: grid;
+      grid-template-columns: 1.1fr 0.9fr; gap: 2.5rem; align-items: center;
+      position: relative; overflow: hidden;
+    }
+    .download-card::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: var(--rainbow);
+    }
+    .download-card h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); letter-spacing: -0.02em; margin-bottom: 0.8rem; }
+    .download-card p { color: var(--ink-soft); }
+    .download-ctas { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 1.6rem; align-items: center; }
+    .steps { display: flex; flex-direction: column; gap: 1rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step .n {
+      flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--rainbow);
+      color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+    }
+    .step h3 { font-size: 1rem; }
+    .step p { font-size: 0.9rem; color: var(--ink-soft); }
+
+    /* ---------- Modal / auth ---------- */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15,13,24,0.55); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center; z-index: 100; padding: 1rem;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 1.3rem; width: 100%; max-width: 420px;
+      padding: 2rem; position: relative; box-shadow: 0 40px 90px -30px rgba(0,0,0,0.5);
+      max-height: 92vh; overflow-y: auto;
+    }
+    .modal .top-stripe { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--rainbow); border-radius: 1.3rem 1.3rem 0 0; }
+    .modal-close {
+      position: absolute; top: 0.9rem; right: 0.9rem; border: none; background: var(--bg-soft);
+      width: 34px; height: 34px; border-radius: 50%; font-size: 1rem; cursor: pointer; color: var(--ink-soft);
+    }
+    .modal h2 { font-size: 1.4rem; letter-spacing: -0.01em; display: flex; align-items: center; gap: 0.5rem; }
+    .modal .sub { color: var(--ink-soft); font-size: 0.92rem; margin: 0.3rem 0 1.2rem; }
+    .tabs { display: flex; background: var(--bg-soft); border-radius: 999px; padding: 0.25rem; margin-bottom: 1.3rem; }
+    .tabs button {
+      flex: 1; border: none; background: transparent; font-family: var(--font); font-weight: 600;
+      font-size: 0.92rem; padding: 0.5rem; border-radius: 999px; cursor: pointer; color: var(--ink-soft);
+    }
+    .tabs button.active { background: #fff; color: var(--ink); box-shadow: 0 2px 8px -4px rgba(25,22,39,0.3); }
+    .field { margin-bottom: 0.95rem; }
+    .field label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; font-family: var(--font); font-size: 0.95rem;
+      padding: 0.65rem 0.9rem; border: 1.5px solid var(--border); border-radius: 0.7rem;
+      background: #fff; color: var(--ink);
+    }
+    .field input:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(155,135,245,0.25); }
+    .auth-msg {
+      display: none; font-size: 0.88rem; border-radius: 0.7rem; padding: 0.7rem 0.9rem; margin-bottom: 1rem;
+    }
+    .auth-msg.error { display: block; background: #fdecec; color: #b3261e; }
+    .auth-msg.success { display: block; background: #e7f7ec; color: #1a7f37; }
+    .auth-actions { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 1.2rem; }
+    .divider { display: flex; align-items: center; gap: 0.8rem; color: var(--ink-soft); font-size: 0.8rem; margin: 1.1rem 0; }
+    .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+    .link-btn { border: none; background: none; color: var(--primary); font-family: var(--font); font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
+    .fine { font-size: 0.78rem; color: var(--ink-soft); text-align: center; margin-top: 1rem; }
+
+    /* ---------- Footer ---------- */
+    footer.site {
+      background: var(--bg-soft); border-top: 1px solid var(--border); padding: 3.5rem 0 2.5rem;
+    }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2rem; }
+    .footer-brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 800; font-size: 1.1rem; }
+    .footer-brand img { width: 34px; height: 34px; }
+    .footer-grid p { color: var(--ink-soft); font-size: 0.9rem; margin-top: 0.7rem; max-width: 20rem; }
+    .footer-col h4 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin-bottom: 0.8rem; }
+    .footer-col a { display: block; text-decoration: none; color: var(--ink); font-size: 0.93rem; margin-bottom: 0.5rem; }
+    .footer-col a:hover { color: var(--primary); }
+    .footer-bottom {
+      margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+      color: var(--ink-soft); font-size: 0.85rem;
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 900px) {
+      .hero-inner { grid-template-columns: 1fr; text-align: center; padding-top: 3rem; }
+      .hero p.lede { margin: 0 auto; }
+      .hero-ctas, .trust-row { justify-content: center; }
+      .grid-3, .safety-grid { grid-template-columns: 1fr 1fr; }
+      .personas { grid-template-columns: 1fr 1fr; }
+      .download-card { grid-template-columns: 1fr; padding: 2rem; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .nav-links { display: none; }
+    }
+    @media (max-width: 560px) {
+      .grid-3, .safety-grid, .personas { grid-template-columns: 1fr; }
+      .phone { width: 270px; }
+      .screen { height: 540px; }
+      .footer-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-ribbon" aria-hidden="true"></div>
+
+  <header class="site">
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="#top">
+        <img src="images/rainbow-navigator-logo.png" alt="Rainbow Navigator compass logo" />
+        <span class="rainbow-text">Rainbow Navigator</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#safety">Safety</a>
+        <a href="#community">Community</a>
+        <a href="#download">Get the app</a>
+      </div>
+      <span class="user-chip" id="userChip" title=""></span>
+      <button class="btn btn-ghost" id="signInBtn" type="button">Sign in</button>
+      <button class="btn btn-rainbow" id="registerBtn" type="button">Create account</button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- ============ Hero ============ -->
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="container hero-inner">
+        <div>
+          <span class="eyebrow">🌈 Kia ora! Made with aroha in Aotearoa New Zealand</span>
+          <h1 id="hero-heading">Find <span class="rainbow-text">queer-friendly places</span> across Aotearoa</h1>
+          <p class="lede">
+            Rainbow Navigator is a safety-first map of the cafés, bars, clubs, community groups
+            and services where the rainbow community gathers — so real-life connections can
+            happen naturally, gently, and on your own terms.
+          </p>
+          <div class="hero-ctas">
+            <button class="btn btn-rainbow btn-lg" type="button" data-open-auth="register">Create your free account</button>
+            <a class="btn btn-ghost btn-lg" href="https://rainbow-navigator.lovable.app" target="_blank" rel="noopener">Open the web app ↗</a>
+          </div>
+          <div class="hero-ctas">
+            <span class="appstore-badge" role="img" aria-label="Coming soon: Download on the App Store">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+              <span><span class="small">Download on the</span><br /><span class="big">App Store</span></span>
+              <span class="soon-tag">COMING SOON</span>
+            </span>
+          </div>
+          <div class="trust-row">
+            <span><span class="tick">✓</span> Free to use</span>
+            <span><span class="tick">✓</span> No live location tracking</span>
+            <span><span class="tick">✓</span> Every place reviewed</span>
+          </div>
+        </div>
+
+        <!-- Phone mockup of the real Explore screen -->
+        <div class="phone-wrap" aria-hidden="true">
+          <div class="phone">
+            <div class="screen">
+              <div class="m-statusbar"><span>9:41</span><span>📶 🔋</span></div>
+              <div class="m-header">
+                <span class="m-logo"><img src="images/rainbow-navigator-logo.png" alt="" /><span class="rainbow-text">Rainbow&nbsp;Navigator</span></span>
+                <span class="m-signin">Sign in</span>
+              </div>
+              <div class="m-search">🔍 Search places, categories, tags...</div>
+              <div class="m-chips">
+                <span class="m-chip active">All</span>
+                <span class="m-chip">☕ Cafes</span>
+                <span class="m-chip">🍸 Bars</span>
+                <span class="m-chip">🫶 Community</span>
+                <span class="m-chip">🏥 Healthcare</span>
+              </div>
+              <div class="m-map">
+                <div class="m-road h" style="top: 30%;"></div>
+                <div class="m-road h" style="top: 68%;"></div>
+                <div class="m-road v" style="left: 26%;"></div>
+                <div class="m-road v" style="left: 72%;"></div>
+                <div class="m-park" style="width: 72px; height: 54px; left: 6%; top: 42%;"></div>
+                <div class="m-water" style="width: 110px; height: 70px; right: -8%; top: 4%;"></div>
+                <div class="pin pulse" style="left: 43%; top: 44%; background: var(--indigo);"><span>☕</span></div>
+                <div class="pin" style="left: 15%; top: 18%; background: var(--red);"><span>🍸</span></div>
+                <div class="pin" style="left: 78%; top: 36%; background: var(--green);"><span>🫶</span></div>
+                <div class="pin" style="left: 60%; top: 74%; background: var(--blue);"><span>🏳️‍🌈</span></div>
+                <div class="pin" style="left: 30%; top: 78%; background: var(--orange);"><span>📚</span></div>
+                <div class="m-card">
+                  <div class="name">Rainbow Café <span class="verified">✓ Verified</span></div>
+                  <div class="meta">Café · Cuba Street, Te Aro, Wellington</div>
+                  <div class="m-safety">🛡️ Community-vouched safe space</div>
+                </div>
+              </div>
+              <div class="m-nav">
+                <div><span class="ico">👥</span>Connect</div>
+                <div><span class="ico">📅</span>Events</div>
+                <div class="center">🗺️</div>
+                <div><span class="ico">🤍</span>Saved</div>
+                <div><span class="ico">👤</span>Profile</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Features ============ -->
+    <section class="features" id="features" aria-labelledby="features-heading">
+      <div class="container">
+        <div class="section-head">
+          <span class="kicker">What's inside</span>
+          <h2 id="features-heading">Everything you need to find your people</h2>
+          <p>One hub for the places, events, groups and support services of the rainbow
+             community — starting in Aotearoa, with the world to follow.</p>
+        </div>
+        <div class="grid-3">
+          <div class="feature-card" style="--stripe: var(--red); --tint: #ffecec;">
+            <div class="icon">🗺️</div>
+            <h3>A map of places, not people</h3>
+            <p>Explore verified queer-friendly cafés, bars, nightlife, shops, services and
+               healthcare across Aotearoa. Filter by category or city, or see what's near you.</p>
+          </div>
+          <div class="feature-card" style="--stripe: var(--orange); --tint: #fff1e7;">
+            <div class="icon">🛡️</div>
+            <h3>Safety you can trust</h3>
+            <p>Places are ✓ Verified against current information. Community suggestions are
+               reviewed before they appear, and every listing has a report link.</p>
+          </div>
+          <div class="feature-card" style="--stripe: var(--yellow); --tint: #fff9e3;">
+            <div class="icon">📅</div>
+            <h3>Events &amp; what's on</h3>
+            <p>From drag brunches to book clubs, quiz nights to support groups — find what's
+               happening near you and add your own community events.</p>
+          </div>
+          <div class="feature-card" style="--stripe: var(--green); --tint: #eaf8ee;">
+            <div class="icon">👥</div>
+            <h3>Community groups</h3>
+            <p>Browse and join local groups — social, activism, sports, cultural — or start
+               your own and grow it with group chats and meetups.</p>
+          </div>
+          <div class="feature-card" style="--stripe: var(--blue); --tint: #eaf2fe;">
+            <div class="icon">📚</div>
+            <h3>Resources that matter</h3>
+            <p>A curated directory of health, legal, housing and peer-support services for the
+               rainbow community, including takatāpui and trans-specific support.</p>
+          </div>
+          <div class="feature-card" style="--stripe: var(--violet); --tint: #fbeef8;">
+            <div class="icon">✨</div>
+            <h3>Ask Navigator</h3>
+            <p>"Kia ora! What are you looking for today?" — a friendly AI guide that helps you
+               find places, events and resources in plain language.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Safety ============ -->
+    <section class="safety" id="safety" aria-labelledby="safety-heading">
+      <div class="container">
+        <div class="section-head">
+          <span class="kicker" style="color: var(--indigo);">Safety comes first</span>
+          <h2 id="safety-heading">Built to keep our community safe</h2>
+          <p>Rainbow Navigator exists to help our community find each other in real life —
+             safely, gently, and on your own terms.</p>
+        </div>
+        <div class="safety-grid">
+          <div class="safety-card">
+            <div class="icon">🤝</div>
+            <h3>Friendship, not hookups</h3>
+            <p>This is a friendship and community app. It's for finding the places and groups
+               where genuine connections happen naturally — not a dating app, by design.</p>
+          </div>
+          <div class="safety-card">
+            <div class="icon">📍</div>
+            <h3>Your location stays yours</h3>
+            <p>We never track your live location. The map shows places, not people — "find me"
+               only works on your device and is never stored or shared.</p>
+          </div>
+          <div class="safety-card">
+            <div class="icon">💜</div>
+            <h3>A real code of conduct</h3>
+            <p>Names, pronouns and identities are honoured here — all of them, always. No
+               harassment, no hate, and every report is acted on.</p>
+          </div>
+        </div>
+        <div class="support-line">
+          <p><strong>Need support right now?</strong> OutLine Aotearoa — rainbow peer support, 6pm–9pm nightly</p>
+          <a class="btn" href="tel:08006885463">📞 0800 688 5463</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Community / personas ============ -->
+    <section id="community" aria-labelledby="community-heading">
+      <div class="container">
+        <div class="section-head">
+          <span class="kicker">For all of us</span>
+          <h2 id="community-heading">Whoever you are, wherever you're heading</h2>
+          <p>Every colour of the community is welcome here.</p>
+        </div>
+        <div class="personas">
+          <div class="persona" style="--tint: #ffecec;">
+            <div class="emoji">🏙️</div>
+            <h3>Locals finding their scene</h3>
+            <p>Discover the queer-friendly spots in your own city you never knew existed.</p>
+          </div>
+          <div class="persona" style="--tint: #fff9e3;">
+            <div class="emoji">🧳</div>
+            <h3>Travellers &amp; new arrivals</h3>
+            <p>Land somewhere new and know exactly where you'll be safe and welcome.</p>
+          </div>
+          <div class="persona" style="--tint: #eaf8ee;">
+            <div class="emoji">🌱</div>
+            <h3>Young people &amp; students</h3>
+            <p>Find peer support, social events and safe spaces to be entirely yourself.</p>
+          </div>
+          <div class="persona" style="--tint: #eaf2fe;">
+            <div class="emoji">👨‍👩‍👧</div>
+            <h3>Whānau &amp; families</h3>
+            <p>Family-friendly events, parenting resources and supportive community groups.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Download / App Store ============ -->
+    <section class="download" id="download" aria-labelledby="download-heading">
+      <div class="container">
+        <div class="download-card">
+          <div>
+            <span class="kicker" style="text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.78rem; font-weight: 700; color: var(--primary);">Get Rainbow Navigator</span>
+            <h2 id="download-heading">The iOS app is on its way 🎉</h2>
+            <p>
+              Rainbow Navigator is coming to the Apple App Store. Create your free account today
+              and you'll be ready on day one — and in the meantime, the web app works beautifully
+              on your phone.
+            </p>
+            <div class="download-ctas">
+              <span class="appstore-badge" role="img" aria-label="Coming soon: Download on the App Store">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+                <span><span class="small">Download on the</span><br /><span class="big">App Store</span></span>
+                <span class="soon-tag">COMING SOON</span>
+              </span>
+              <a class="btn btn-primary btn-lg" href="https://rainbow-navigator.lovable.app" target="_blank" rel="noopener">Use the web app now ↗</a>
+            </div>
+          </div>
+          <div class="steps">
+            <div class="step">
+              <div class="n">1</div>
+              <div><h3>Create your free account</h3><p>Register here in seconds — your account works on web and in the iOS app when it lands.</p></div>
+            </div>
+            <div class="step">
+              <div class="n">2</div>
+              <div><h3>Explore the map today</h3><p>Open the web app on any device and start finding queer-friendly places right now.</p></div>
+            </div>
+            <div class="step">
+              <div class="n">3</div>
+              <div><h3>Be first in line</h3><p>When the App Store release is ready, you'll simply sign in and pick up where you left off.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ Auth modal ============ -->
+  <div class="modal-backdrop" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="modal">
+      <div class="top-stripe" aria-hidden="true"></div>
+      <button class="modal-close" type="button" id="authClose" aria-label="Close">✕</button>
+      <h2 id="authTitle">Kia ora! 🌈</h2>
+      <p class="sub" id="authSub">Sign in to Rainbow Navigator, or create a free account.</p>
+
+      <div class="tabs" role="tablist">
+        <button type="button" id="tabSignIn" role="tab" aria-selected="true" class="active">Sign in</button>
+        <button type="button" id="tabRegister" role="tab" aria-selected="false">Create account</button>
+      </div>
+
+      <div class="auth-msg" id="authMsg" role="status"></div>
+
+      <!-- Sign in -->
+      <form id="signInForm">
+        <div class="field">
+          <label for="siEmail">Email</label>
+          <input id="siEmail" type="email" autocomplete="email" required placeholder="you@example.com" />
+        </div>
+        <div class="field">
+          <label for="siPassword">Password</label>
+          <input id="siPassword" type="password" autocomplete="current-password" required placeholder="••••••••" />
+        </div>
+        <div class="auth-actions">
+          <button class="btn btn-rainbow btn-lg" type="submit" id="siSubmit">Sign in</button>
+          <button class="link-btn" type="button" id="forgotBtn">Forgot your password?</button>
+        </div>
+      </form>
+
+      <!-- Register -->
+      <form id="registerForm" hidden>
+        <div class="field">
+          <label for="regName">Name</label>
+          <input id="regName" type="text" autocomplete="name" required placeholder="Your name (or chosen name!)" />
+        </div>
+        <div class="field">
+          <label for="regEmail">Email</label>
+          <input id="regEmail" type="email" autocomplete="email" required placeholder="you@example.com" />
+        </div>
+        <div class="field">
+          <label for="regPassword">Password</label>
+          <input id="regPassword" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters" />
+        </div>
+        <div class="auth-actions">
+          <button class="btn btn-rainbow btn-lg" type="submit" id="regSubmit">Create free account</button>
+        </div>
+      </form>
+
+      <!-- Signed-in state -->
+      <div id="signedInPanel" hidden>
+        <div class="auth-msg success" style="display: block;" id="signedInMsg"></div>
+        <div class="auth-actions">
+          <a class="btn btn-rainbow btn-lg" href="https://rainbow-navigator.lovable.app" target="_blank" rel="noopener">Open the app ↗</a>
+          <button class="btn btn-ghost" type="button" id="signOutBtn">Sign out on this page</button>
+        </div>
+      </div>
+
+      <div id="oauthBlock">
+        <div class="divider">or</div>
+        <div class="auth-actions" style="margin-top: 0;">
+          <button class="btn btn-ghost btn-lg" type="button" id="googleBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.09a6.6 6.6 0 0 1 0-4.18V7.07H2.18a11 11 0 0 0 0 9.86l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+            Continue with Google
+          </button>
+        </div>
+      </div>
+
+      <p class="fine">By continuing you agree to our community code of conduct:
+        respect identity, consent in everything, protect privacy. 💜</p>
+    </div>
+  </div>
+
+  <footer class="site">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <img src="images/rainbow-navigator-logo.png" alt="" />
+            <span class="rainbow-text">Rainbow Navigator</span>
+          </div>
+          <p>A safety-first map of queer-friendly places across Aotearoa New Zealand.
+             Find where community gathers and make real-life connections.</p>
+        </div>
+        <div class="footer-col">
+          <h4>App</h4>
+          <a href="https://rainbow-navigator.lovable.app" target="_blank" rel="noopener">Open the web app</a>
+          <a href="https://rainbow-navigator.lovable.app/safety" target="_blank" rel="noopener">Safety hub</a>
+          <a href="https://rainbow-navigator.lovable.app/suggest" target="_blank" rel="noopener">Suggest a place</a>
+          <a href="https://rainbow-navigator.lovable.app/events" target="_blank" rel="noopener">Events</a>
+        </div>
+        <div class="footer-col">
+          <h4>Account</h4>
+          <a href="#" data-open-auth="signin">Sign in</a>
+          <a href="#" data-open-auth="register">Create account</a>
+          <a href="#download">Get the iOS app</a>
+        </div>
+        <div class="footer-col">
+          <h4>Support</h4>
+          <a href="tel:08006885463">OutLine Aotearoa — 0800 688 5463</a>
+          <a href="https://rainbow-navigator.lovable.app/resources" target="_blank" rel="noopener">Community resources</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Rainbow Navigator · Made with aroha in Aotearoa 🌈</span>
+        <span>He waka eke noa — we're all in this together.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ---- Supabase auth (same project the app uses) --------------------------
+    // The publishable key is safe to expose; data access is protected by
+    // Row Level Security in the database.
+    const SUPABASE_URL = 'https://wpzjeodswvbneylbkwid.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_kp6WLDXRQQPdaPWbXVR8TQ_cXFwHAnC';
+    const APP_URL = 'https://rainbow-navigator.lovable.app';
+    const SESSION_KEY = 'rainbow-navigator-landing-session';
+
+    async function gotrue(path, body) {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+        body: JSON.stringify(body),
+      });
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+      if (!res.ok) {
+        throw new Error(data.msg || data.error_description || data.message || 'Something went wrong — please try again.');
+      }
+      return data;
+    }
+
+    // ---- Modal wiring --------------------------------------------------------
+    const modal = document.getElementById('authModal');
+    const authMsg = document.getElementById('authMsg');
+    const signInForm = document.getElementById('signInForm');
+    const registerForm = document.getElementById('registerForm');
+    const signedInPanel = document.getElementById('signedInPanel');
+    const oauthBlock = document.getElementById('oauthBlock');
+    const tabSignIn = document.getElementById('tabSignIn');
+    const tabRegister = document.getElementById('tabRegister');
+    const tabs = document.querySelector('.tabs');
+    const userChip = document.getElementById('userChip');
+    const signInBtn = document.getElementById('signInBtn');
+    const registerBtn = document.getElementById('registerBtn');
+
+    function setMsg(kind, text) {
+      authMsg.className = 'auth-msg' + (kind ? ' ' + kind : '');
+      authMsg.textContent = text || '';
+    }
+
+    function getSession() {
+      try {
+        const s = JSON.parse(localStorage.getItem(SESSION_KEY));
+        if (s && s.expires_at && s.expires_at * 1000 > Date.now()) return s;
+      } catch (_) {}
+      return null;
+    }
+
+    function renderAuthState() {
+      const session = getSession();
+      const signedIn = !!session;
+      const name = signedIn ? ((session.user.user_metadata && session.user.user_metadata.name) || session.user.email) : '';
+      userChip.style.display = signedIn ? 'inline-flex' : 'none';
+      userChip.textContent = signedIn ? `👋 ${name}` : '';
+      userChip.title = signedIn ? (session.user.email || '') : '';
+      signInBtn.textContent = signedIn ? 'Open app ↗' : 'Sign in';
+      registerBtn.style.display = signedIn ? 'none' : '';
+    }
+
+    function showTab(which) {
+      const isRegister = which === 'register';
+      tabSignIn.classList.toggle('active', !isRegister);
+      tabRegister.classList.toggle('active', isRegister);
+      tabSignIn.setAttribute('aria-selected', String(!isRegister));
+      tabRegister.setAttribute('aria-selected', String(isRegister));
+      signInForm.hidden = isRegister;
+      registerForm.hidden = !isRegister;
+    }
+
+    function openAuth(which) {
+      setMsg('', '');
+      const session = getSession();
+      if (session) {
+        tabs.style.display = 'none';
+        signInForm.hidden = true;
+        registerForm.hidden = true;
+        oauthBlock.hidden = true;
+        signedInPanel.hidden = false;
+        const name = (session.user.user_metadata && session.user.user_metadata.name) || session.user.email;
+        document.getElementById('signedInMsg').textContent = `You're signed in as ${name}. Your account is ready — on web today, and in the iOS app when it launches.`;
+      } else {
+        tabs.style.display = '';
+        signedInPanel.hidden = true;
+        oauthBlock.hidden = false;
+        showTab(which || 'signin');
+      }
+      modal.classList.add('open');
+      const firstInput = modal.querySelector('form:not([hidden]) input');
+      if (firstInput) firstInput.focus();
+    }
+
+    function closeAuth() { modal.classList.remove('open'); }
+
+    signInBtn.addEventListener('click', () => {
+      if (getSession()) { window.open(APP_URL, '_blank', 'noopener'); return; }
+      openAuth('signin');
+    });
+    registerBtn.addEventListener('click', () => openAuth('register'));
+    document.querySelectorAll('[data-open-auth]').forEach((el) => {
+      el.addEventListener('click', (e) => { e.preventDefault(); openAuth(el.dataset.openAuth); });
+    });
+    document.getElementById('authClose').addEventListener('click', closeAuth);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeAuth(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAuth(); });
+    tabSignIn.addEventListener('click', () => { setMsg('', ''); showTab('signin'); });
+    tabRegister.addEventListener('click', () => { setMsg('', ''); showTab('register'); });
+
+    // ---- Sign in -------------------------------------------------------------
+    signInForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('siSubmit');
+      btn.disabled = true; btn.textContent = 'Signing in…'; setMsg('', '');
+      try {
+        const data = await gotrue('token?grant_type=password', {
+          email: document.getElementById('siEmail').value.trim(),
+          password: document.getElementById('siPassword').value,
+        });
+        localStorage.setItem(SESSION_KEY, JSON.stringify({
+          access_token: data.access_token,
+          expires_at: data.expires_at || (Math.floor(Date.now() / 1000) + (data.expires_in || 3600)),
+          user: data.user,
+        }));
+        renderAuthState();
+        openAuth();
+      } catch (err) {
+        setMsg('error', err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Sign in';
+      }
+    });
+
+    // ---- Register ------------------------------------------------------------
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('regSubmit');
+      btn.disabled = true; btn.textContent = 'Creating account…'; setMsg('', '');
+      try {
+        const data = await gotrue('signup', {
+          email: document.getElementById('regEmail').value.trim(),
+          password: document.getElementById('regPassword').value,
+          data: { name: document.getElementById('regName').value.trim() },
+        });
+        if (data.access_token) {
+          // Email confirmation disabled — signed in straight away.
+          localStorage.setItem(SESSION_KEY, JSON.stringify({
+            access_token: data.access_token,
+            expires_at: data.expires_at || (Math.floor(Date.now() / 1000) + (data.expires_in || 3600)),
+            user: data.user,
+          }));
+          renderAuthState();
+          openAuth();
+        } else if (data.id || data.user) {
+          const user = data.user || data;
+          if (user.identities && user.identities.length === 0) {
+            setMsg('error', 'That email already has an account — try signing in instead.');
+            showTab('signin');
+          } else {
+            setMsg('success', 'Almost there! Check your email for a confirmation link, then sign in. 💌');
+            showTab('signin');
+          }
+        } else {
+          setMsg('success', 'Account created! Check your email for a confirmation link, then sign in. 💌');
+          showTab('signin');
+        }
+      } catch (err) {
+        setMsg('error', err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Create free account';
+      }
+    });
+
+    // ---- Forgot password -------------------------------------------------------
+    document.getElementById('forgotBtn').addEventListener('click', async () => {
+      const email = document.getElementById('siEmail').value.trim();
+      if (!email) { setMsg('error', 'Enter your email above first, then tap "Forgot your password?" again.'); return; }
+      try {
+        await gotrue('recover', { email });
+        setMsg('success', `If an account exists for ${email}, a password reset link is on its way. 💌`);
+      } catch (err) {
+        setMsg('error', err.message);
+      }
+    });
+
+    // ---- Google --------------------------------------------------------------
+    document.getElementById('googleBtn').addEventListener('click', () => {
+      // Supabase redirects back to the app (its configured site URL) after Google.
+      window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=google`;
+    });
+
+    // ---- Sign out (landing page only) -----------------------------------------
+    document.getElementById('signOutBtn').addEventListener('click', () => {
+      localStorage.removeItem(SESSION_KEY);
+      renderAuthState();
+      closeAuth();
+    });
+
+    renderAuthState();
+  </script>
+</body>
+</html>
